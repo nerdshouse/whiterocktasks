@@ -1,0 +1,42 @@
+import React, { createContext, useContext, useState, useEffect } from 'react';
+import { User } from '../types';
+
+interface AuthContextType {
+  user: User | null;
+  login: (user: User) => void;
+  logout: () => void;
+  isAuthenticated: boolean;
+}
+
+const AuthContext = createContext<AuthContextType | undefined>(undefined);
+
+export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const [user, setUser] = useState<User | null>(null);
+
+  useEffect(() => {
+    const stored = localStorage.getItem('wr_tasks_session');
+    if (stored) setUser(JSON.parse(stored));
+  }, []);
+
+  const login = (u: User) => {
+    setUser(u);
+    localStorage.setItem('wr_tasks_session', JSON.stringify(u));
+  };
+
+  const logout = () => {
+    setUser(null);
+    localStorage.removeItem('wr_tasks_session');
+  };
+
+  return (
+    <AuthContext.Provider value={{ user, login, logout, isAuthenticated: !!user }}>
+      {children}
+    </AuthContext.Provider>
+  );
+};
+
+export const useAuth = () => {
+  const ctx = useContext(AuthContext);
+  if (!ctx) throw new Error('useAuth must be used within AuthProvider');
+  return ctx;
+};
