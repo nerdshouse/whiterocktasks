@@ -37,6 +37,7 @@ export interface Task {
   id: string;
   title: string;
   description: string;
+  start_date?: string;
   due_date: string;
   priority: TaskPriority;
   status: TaskStatus;
@@ -56,6 +57,7 @@ export interface Task {
   audit_status?: AuditStatus;
   audited_at?: string;
   audited_by?: string;
+  attachment_url?: string;
 }
 
 export interface Holiday {
@@ -93,5 +95,6 @@ export interface KpiMetrics {
   on_time_completed: number;
   late_completed: number;
   overdue_count: number;
+  overdue_percent: number;
   late_completion_percent: number;
 }

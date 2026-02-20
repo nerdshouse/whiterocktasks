@@ -14,9 +14,14 @@ export const TaskTable: React.FC = () => {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [holidays, setHolidays] = useState<{ date: string; name: string }[]>([]);
   const [loading, setLoading] = useState(true);
+  const [startDateFilter, setStartDateFilter] = useState('');
+  const [completeTask, setCompleteTask] = useState<Task | null>(null);
+  const [attachmentUrl, setAttachmentUrl] = useState('');
 
   const isAuditor = user?.role === UserRole.AUDITOR;
+  const isOwner = user?.role === UserRole.OWNER;
   const isManager = user?.role === UserRole.MANAGER || user?.role === UserRole.OWNER;
+  const isDoer = user?.role === UserRole.DOER;
 
   useEffect(() => {
     const load = async () => {
@@ -28,22 +33,37 @@ export const TaskTable: React.FC = () => {
     load();
   }, []);
 
-  const filteredTasks = isAuditor
+  let filteredTasks = isAuditor
     ? tasks.filter((t) => t.status === 'completed')
-    : isManager
+    : isOwner || isManager
     ? tasks
-    : tasks.filter(
-        (t) => t.assigned_to_id === user?.id || t.assigned_by_id === user?.id
-      );
+    : tasks.filter((t) => t.assigned_to_id === user?.id || t.assigned_by_id === user?.id);
 
-  const handleComplete = async (t: Task) => {
+  if (isDoer && startDateFilter) {
+    filteredTasks = filteredTasks.filter((t) => t.start_date === startDateFilter);
+  }
+
+  const handleCompleteClick = (t: Task) => {
+    if (t.attachment_required) {
+      setCompleteTask(t);
+      setAttachmentUrl('');
+    } else {
+      handleComplete(t, undefined);
+    }
+  };
+
+  const handleComplete = async (t: Task, url?: string) => {
     if (!user) return;
+    if (t.attachment_required && !url) return;
     try {
       await api.updateTask(t.id, {
         status: 'completed',
         completed_at: new Date().toISOString(),
+        ...(url && { attachment_url: url }),
       });
       setTasks(await api.getTasks());
+      setCompleteTask(null);
+      setAttachmentUrl('');
     } catch (err) {
       console.error(err);
     }
@@ -163,13 +183,27 @@ export const TaskTable: React.FC = () => {
 
   return (
     <div>
-      <h1 className="text-2xl font-bold text-slate-800 mb-6">Task Table</h1>
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
+        <h1 className="text-2xl font-bold text-slate-800">Task Table</h1>
+        {isDoer && (
+          <div className="flex items-center gap-2">
+            <label className="text-sm text-slate-600">Filter by Start Date:</label>
+            <input
+              type="date"
+              value={startDateFilter}
+              onChange={(e) => setStartDateFilter(e.target.value)}
+              className="h-9 rounded-lg border border-slate-300 px-3 text-sm"
+            />
+          </div>
+        )}
+      </div>
       <div className="overflow-x-auto">
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-slate-200">
               <th className="text-left py-3 px-2">Title</th>
               <th className="text-left py-3 px-2">Assigned To</th>
+              <th className="text-left py-3 px-2">Start Date</th>
               <th className="text-left py-3 px-2">Due Date</th>
               <th className="text-left py-3 px-2">Priority</th>
               <th className="text-left py-3 px-2">Status</th>
@@ -193,6 +227,7 @@ export const TaskTable: React.FC = () => {
                     )}
                   </td>
                   <td className="py-3 px-2">{t.assigned_to_name}</td>
+                  <td className="py-3 px-2">{t.start_date || '-'}</td>
                   <td className="py-3 px-2">{t.due_date}</td>
                   <td className="py-3 px-2">
                     <span
@@ -222,7 +257,7 @@ export const TaskTable: React.FC = () => {
                   </td>
                   {!isManager && t.assigned_to_id === user?.id && t.status !== 'completed' && (
                     <td className="py-3 px-2">
-                      <Button size="sm" variant="success" onClick={() => handleComplete(t)}>
+                      <Button size="sm" variant="success" onClick={() => handleCompleteClick(t)}>
                         Mark Complete
                       </Button>
                     </td>
@@ -233,6 +268,36 @@ export const TaskTable: React.FC = () => {
           </tbody>
         </table>
       </div>
+
+      {completeTask && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl p-6 max-w-md w-full">
+            <h3 className="text-lg font-semibold mb-2">Upload Attachment Required</h3>
+            <p className="text-sm text-slate-600 mb-4">
+              {completeTask.attachment_description || 'Please provide the required attachment.'}
+            </p>
+            <input
+              type="url"
+              value={attachmentUrl}
+              onChange={(e) => setAttachmentUrl(e.target.value)}
+              placeholder="Paste attachment URL (e.g. Google Drive link)"
+              className="w-full h-10 rounded-lg border border-slate-300 px-3 text-sm mb-4"
+              required
+            />
+            <div className="flex gap-2 justify-end">
+              <Button variant="secondary" onClick={() => { setCompleteTask(null); setAttachmentUrl(''); }}>
+                Cancel
+              </Button>
+              <Button
+                onClick={() => handleComplete(completeTask, attachmentUrl)}
+                disabled={!attachmentUrl.trim()}
+              >
+                Complete with Attachment
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

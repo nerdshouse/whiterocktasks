@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import { Link, useLocation, Navigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { UserRole } from '../types';
 import {
@@ -12,8 +12,8 @@ import {
   LogOut,
   Menu,
   X,
-  Calendar,
   Users,
+  Paperclip,
 } from 'lucide-react';
 
 const NavItem = ({
@@ -49,18 +49,26 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
   if (!user) return <>{children}</>;
 
   const isAuditor = user.role === UserRole.AUDITOR;
+  if (isAuditor && location.pathname !== '/tasks') {
+    return <Navigate to="/tasks" replace />;
+  }
+  const isOwner = user.role === UserRole.OWNER;
   const isManager = user.role === UserRole.MANAGER || user.role === UserRole.OWNER;
   const canAssign = [UserRole.OWNER, UserRole.MANAGER, UserRole.DOER].includes(user.role);
+  const canSeeRedZone = [UserRole.OWNER, UserRole.MANAGER, UserRole.DOER].includes(user.role);
 
-  const navItems: { to: string; icon: any; label: string }[] = [
-    ...(canAssign ? [{ to: '/assign', icon: ClipboardList, label: 'Assign Task' }] : []),
-    { to: '/removal', icon: Trash2, label: 'Removal Request' },
-    { to: '/redzone', icon: AlertTriangle, label: 'Red Zone' },
-    { to: '/kpi', icon: BarChart3, label: 'KPI' },
-    { to: '/tasks', icon: Table2, label: isAuditor ? 'Audit Tasks' : 'Task Table' },
-    { to: '/members', icon: Users, label: 'Members' },
-    { to: '/settings', icon: Settings, label: 'Settings' },
-  ];
+  const navItems: { to: string; icon: any; label: string }[] = isAuditor
+    ? [{ to: '/tasks', icon: Table2, label: 'Audit Tasks' }]
+    : [
+        ...(canAssign ? [{ to: '/assign', icon: ClipboardList, label: 'Assign Task' }] : []),
+        { to: '/removal', icon: Trash2, label: 'Removal Request' },
+        ...(canSeeRedZone ? [{ to: '/redzone', icon: AlertTriangle, label: 'Red Zone' }] : []),
+        { to: '/kpi', icon: BarChart3, label: 'KPI' },
+        { to: '/tasks', icon: Table2, label: 'Task Table' },
+        ...(isOwner ? [{ to: '/members', icon: Users, label: 'Members' }] : []),
+        ...(isManager ? [{ to: '/bogus-attachment', icon: Paperclip, label: 'Bogus Attachment' }] : []),
+        { to: '/settings', icon: Settings, label: 'Settings' },
+      ];
 
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col md:flex-row">

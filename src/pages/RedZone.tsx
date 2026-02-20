@@ -28,16 +28,35 @@ export const RedZone: React.FC = () => {
     setLoading(false);
   };
 
-  const isManager = user?.role === UserRole.MANAGER || user?.role === UserRole.OWNER;
+  const isOwner = user?.role === UserRole.OWNER;
+  const isManager = user?.role === UserRole.MANAGER;
   const isDoer = user?.role === UserRole.DOER;
-  const filtered =
-    !isManager && !isDoer
-      ? tasks
-      : isDoer && !isManager
-      ? tasks.filter((t) => t.assigned_to_id === user?.id || t.assigned_by_id === user?.id)
-      : tasks;
+  const filtered = isOwner
+    ? tasks
+    : isManager
+    ? tasks
+    : isDoer
+    ? tasks.filter((t) => t.assigned_to_id === user?.id)
+    : [];
 
   if (loading) return <div className="text-slate-500">Loading...</div>;
+
+  if (filtered.length === 0 && !loading) {
+    return (
+      <div>
+        <h1 className="text-2xl font-bold text-slate-800 mb-6 flex items-center gap-2">
+          <AlertTriangle className="text-red-500" />
+          Red Zone (Overdue Tasks)
+        </h1>
+        <p className="text-slate-600 mb-6">
+          Tasks that are past their due date and not yet completed.
+        </p>
+        <div className="bg-green-50 border border-green-200 rounded-xl p-6 text-center text-green-800">
+          No overdue tasks. Great job!
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div>

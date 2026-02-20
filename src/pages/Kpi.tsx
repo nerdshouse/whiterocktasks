@@ -1,15 +1,20 @@
 import React, { useState, useEffect } from 'react';
+import { useAuth } from '../contexts/AuthContext';
 import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip } from 'recharts';
 import { api } from '../services/api';
 import { computeKpi, computeKpiByMember } from '../lib/utils';
 import { KpiMetrics } from '../types';
+import { UserRole } from '../types';
 
 const PIE_COLORS = ['#14b8a6', '#22c55e', '#f59e0b', '#ef4444'];
 
 export const Kpi: React.FC = () => {
+  const { user } = useAuth();
   const [metrics, setMetrics] = useState<KpiMetrics | null>(null);
   const [memberRows, setMemberRows] = useState<ReturnType<typeof computeKpiByMember>>([]);
   const [loading, setLoading] = useState(true);
+
+  const isOwner = user?.role === UserRole.OWNER;
 
   useEffect(() => {
     const load = async () => {
@@ -19,12 +24,12 @@ export const Kpi: React.FC = () => {
         api.getAbsences(),
         api.getUsers(),
       ]);
-      setMetrics(computeKpi(tasks, holidays, absences));
+      setMetrics(computeKpi(tasks, holidays, absences, isOwner ? undefined : user?.id));
       setMemberRows(computeKpiByMember(tasks, holidays, absences, users));
       setLoading(false);
     };
     load();
-  }, []);
+  }, [user?.id, isOwner]);
 
   if (loading) return <div className="text-slate-500">Loading...</div>;
   if (!metrics) return null;
@@ -41,6 +46,7 @@ export const Kpi: React.FC = () => {
     { label: 'On Time Completed', value: metrics.on_time_completed },
     { label: 'Late Completed', value: metrics.late_completed },
     { label: 'Overdue Tasks', value: metrics.overdue_count },
+    { label: 'Overdue %', value: `${metrics.overdue_percent}%` },
     { label: 'Late Completion %', value: `${metrics.late_completion_percent}%` },
   ];
 
@@ -48,7 +54,7 @@ export const Kpi: React.FC = () => {
     <div>
       <h1 className="text-2xl font-bold text-slate-800 mb-6">KPI Dashboard</h1>
       <p className="text-slate-600 mb-6">
-        Tasks on holidays and during user absence are excluded from KPI calculation.
+        {isOwner ? 'Full team KPI.' : 'Your personal KPI.'} Tasks on holidays and during absence are excluded.
       </p>
 
       {pieData.length > 0 && (
@@ -98,7 +104,9 @@ export const Kpi: React.FC = () => {
         </table>
       </div>
 
-      <h2 className="text-lg font-semibold text-slate-800 mb-4">KPI by Member</h2>
+      <h2 className="text-lg font-semibold text-slate-800 mb-4">
+        {isOwner ? 'KPI by Member' : 'My KPI'}
+      </h2>
       <div className="overflow-x-auto">
         <table className="w-full border-collapse bg-white rounded-xl border border-slate-200 shadow-sm">
           <thead>
@@ -113,7 +121,7 @@ export const Kpi: React.FC = () => {
             </tr>
           </thead>
           <tbody>
-            {memberRows.map((row) => (
+            {memberRows.filter((r) => isOwner || r.userId === user?.id).map((row) => (
               <tr key={row.userId} className="border-b border-slate-100 hover:bg-slate-50">
                 <td className="py-3 px-4 font-medium text-slate-800">{row.userName}</td>
                 <td className="py-3 px-4 text-slate-600">{row.city || '-'}</td>

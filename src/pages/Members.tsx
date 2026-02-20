@@ -20,6 +20,7 @@ export const Members: React.FC = () => {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
 
+  const isOwner = user?.role === UserRole.OWNER;
   const isManager = user?.role === UserRole.MANAGER || user?.role === UserRole.OWNER;
 
   useEffect(() => {
@@ -65,12 +66,13 @@ export const Members: React.FC = () => {
   };
 
   if (loading) return <div className="text-slate-500">Loading...</div>;
+  if (!isOwner) return <div className="text-slate-500">Access denied. Only Owner can view Members.</div>;
 
   return (
     <div>
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
         <h1 className="text-2xl font-bold text-slate-800">Members</h1>
-        {isManager && (
+        {isOwner && (
           <Button onClick={() => setShowAddForm(!showAddForm)}>
             <UserPlus size={18} className="mr-2" />
             Add Member
@@ -78,7 +80,7 @@ export const Members: React.FC = () => {
         )}
       </div>
 
-      {showAddForm && isManager && (
+      {showAddForm && isOwner && (
         <form
           onSubmit={handleAddMember}
           className="mb-8 p-6 bg-white rounded-xl border border-slate-200 max-w-lg"
@@ -157,9 +159,7 @@ export const Members: React.FC = () => {
               <th className="text-left py-4 px-4 font-semibold text-slate-800">Role</th>
               <th className="text-left py-4 px-4 font-semibold text-slate-800">City</th>
               <th className="text-left py-4 px-4 font-semibold text-slate-800">Phone</th>
-              {isManager && (
-                <th className="text-right py-4 px-4 font-semibold text-slate-800">Actions</th>
-              )}
+              <th className="text-right py-4 px-4 font-semibold text-slate-800">Actions</th>
             </tr>
           </thead>
           <tbody>
@@ -174,9 +174,8 @@ export const Members: React.FC = () => {
                 </td>
                 <td className="py-3 px-4 text-slate-600">{u.city || '-'}</td>
                 <td className="py-3 px-4 text-slate-600">{u.phone || '-'}</td>
-                {isManager && (
-                  <td className="py-3 px-4 text-right">
-                    <Button
+                <td className="py-3 px-4 text-right">
+                  <Button
                       size="sm"
                       variant="danger"
                       onClick={() => handleDeleteMember(u.id)}
@@ -185,7 +184,6 @@ export const Members: React.FC = () => {
                       <UserMinus size={14} />
                     </Button>
                   </td>
-                )}
               </tr>
             ))}
           </tbody>

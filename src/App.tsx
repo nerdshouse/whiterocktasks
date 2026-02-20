@@ -11,6 +11,7 @@ import { Kpi } from './pages/Kpi';
 import { TaskTable } from './pages/TaskTable';
 import { Settings } from './pages/Settings';
 import { Members } from './pages/Members';
+import { BogusAttachment } from './pages/BogusAttachment';
 
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { isAuthenticated } = useAuth();
@@ -78,6 +79,14 @@ const App: React.FC = () => {
             element={
               <ProtectedRoute>
                 <Members />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/bogus-attachment"
+            element={
+              <ProtectedRoute>
+                <BogusAttachment />
               </ProtectedRoute>
             }
           />

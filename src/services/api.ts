@@ -35,6 +35,7 @@ const docToTask = (d: any): Task => {
     id: d.id,
     title: data.title || '',
     description: data.description || '',
+    start_date: data.start_date,
     due_date: data.due_date || '',
     priority: data.priority || 'medium',
     status: data.status || 'pending',
@@ -54,6 +55,7 @@ const docToTask = (d: any): Task => {
     audit_status: data.audit_status,
     audited_at: data.audited_at ? timestampToISO(data.audited_at) : undefined,
     audited_by: data.audited_by,
+    attachment_url: data.attachment_url,
   };
 };
 

@@ -14,6 +14,7 @@ export const AssignTask: React.FC = () => {
   const [users, setUsers] = useState<User[]>([]);
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
+  const [startDate, setStartDate] = useState('');
   const [dueDate, setDueDate] = useState('');
   const [priority, setPriority] = useState<TaskPriority>('medium');
   const [recurring, setRecurring] = useState<RecurringType>('none');
@@ -52,6 +53,7 @@ export const AssignTask: React.FC = () => {
       const task: Omit<Task, 'id' | 'created_at' | 'updated_at'> = {
         title,
         description,
+        start_date: startDate || undefined,
         due_date: dueDate,
         priority,
         status: 'pending',
@@ -80,6 +82,7 @@ export const AssignTask: React.FC = () => {
       setSuccess('Task assigned successfully!');
       setTitle('');
       setDescription('');
+      setStartDate('');
       setDueDate('');
       setPriority('medium');
       setRecurring('none');
@@ -120,12 +123,19 @@ export const AssignTask: React.FC = () => {
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <Input
+            label="Start Date"
+            type="date"
+            value={startDate}
+            onChange={(e) => setStartDate(e.target.value)}
+            min={today}
+          />
+          <Input
             label="Due Date"
             type="date"
             value={dueDate}
             onChange={(e) => setDueDate(e.target.value)}
             required
-            min={today}
+            min={startDate || today}
           />
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-1">Priority</label>

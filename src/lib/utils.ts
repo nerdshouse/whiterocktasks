@@ -32,10 +32,15 @@ export function isUserAbsent(userId: string, date: string, absences: Absence[]):
 export function computeKpi(
   tasks: Task[],
   holidays: Holiday[],
-  absences: Absence[]
+  absences: Absence[],
+  userId?: string
 ): KpiMetrics {
   const today = new Date().toISOString().split('T')[0];
-  const countable = tasks.filter((t) => {
+  let filtered = tasks;
+  if (userId) {
+    filtered = tasks.filter((t) => t.assigned_to_id === userId);
+  }
+  const countable = filtered.filter((t) => {
     if (t.is_holiday || isHoliday(t.due_date, holidays)) return false;
     if (isUserAbsent(t.assigned_to_id, t.due_date, absences)) return false;
     return true;
@@ -52,11 +57,13 @@ export function computeKpi(
   ).length;
   const completed = onTime + late;
   const latePercent = completed > 0 ? Math.round((late / completed) * 100) : 0;
+  const overduePercent = total > 0 ? Math.round((overdue / total) * 100) : 0;
   return {
     total_assigned: total,
     on_time_completed: onTime,
     late_completed: late,
     overdue_count: overdue,
+    overdue_percent: overduePercent,
     late_completion_percent: latePercent,
   };
 }
