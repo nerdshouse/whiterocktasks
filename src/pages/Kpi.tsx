@@ -117,6 +117,7 @@ export const Kpi: React.FC = () => {
               <th className="text-right py-4 px-4 font-semibold text-slate-800">On Time</th>
               <th className="text-right py-4 px-4 font-semibold text-slate-800">Late</th>
               <th className="text-right py-4 px-4 font-semibold text-slate-800">Overdue</th>
+              <th className="text-right py-4 px-4 font-semibold text-slate-800">Overdue %</th>
               <th className="text-right py-4 px-4 font-semibold text-slate-800">Late %</th>
             </tr>
           </thead>
@@ -129,6 +130,7 @@ export const Kpi: React.FC = () => {
                 <td className="py-3 px-4 text-right text-green-600">{row.on_time_completed}</td>
                 <td className="py-3 px-4 text-right text-amber-600">{row.late_completed}</td>
                 <td className="py-3 px-4 text-right text-red-600">{row.overdue_count}</td>
+                <td className="py-3 px-4 text-right font-medium text-red-600">{row.overdue_percent}%</td>
                 <td className="py-3 px-4 text-right font-medium text-slate-800">
                   {row.late_completion_percent}%
                 </td>

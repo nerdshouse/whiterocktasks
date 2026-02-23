@@ -43,7 +43,9 @@ export interface Task {
   status: TaskStatus;
   recurring: RecurringType;
   attachment_required: boolean;
+  attachment_type?: 'media' | 'text';
   attachment_description?: string;
+  recurring_days?: number[];
   assigned_to_id: string;
   assigned_to_name: string;
   assigned_to_city?: string;
@@ -58,6 +60,7 @@ export interface Task {
   audited_at?: string;
   audited_by?: string;
   attachment_url?: string;
+  attachment_text?: string;
 }
 
 export interface Holiday {

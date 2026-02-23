@@ -76,6 +76,7 @@ export interface MemberKpiRow {
   on_time_completed: number;
   late_completed: number;
   overdue_count: number;
+  overdue_percent: number;
   late_completion_percent: number;
 }
 
@@ -104,6 +105,7 @@ export function computeKpiByMember(
     ).length;
     const completed = onTime + late;
     const latePercent = completed > 0 ? Math.round((late / completed) * 100) : 0;
+    const overduePercent = countable.length > 0 ? Math.round((overdue / countable.length) * 100) : 0;
     return {
       userId: u.id,
       userName: u.name,
@@ -112,6 +114,7 @@ export function computeKpiByMember(
       on_time_completed: onTime,
       late_completed: late,
       overdue_count: overdue,
+      overdue_percent: overduePercent,
       late_completion_percent: latePercent,
     };
   });

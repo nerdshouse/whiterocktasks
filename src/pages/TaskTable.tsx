@@ -17,6 +17,7 @@ export const TaskTable: React.FC = () => {
   const [startDateFilter, setStartDateFilter] = useState('');
   const [completeTask, setCompleteTask] = useState<Task | null>(null);
   const [attachmentUrl, setAttachmentUrl] = useState('');
+  const [attachmentText, setAttachmentText] = useState('');
 
   const isAuditor = user?.role === UserRole.AUDITOR;
   const isOwner = user?.role === UserRole.OWNER;
@@ -47,23 +48,41 @@ export const TaskTable: React.FC = () => {
     if (t.attachment_required) {
       setCompleteTask(t);
       setAttachmentUrl('');
+      setAttachmentText('');
     } else {
-      handleComplete(t, undefined);
+      handleComplete(t, undefined, undefined);
     }
   };
 
-  const handleComplete = async (t: Task, url?: string) => {
+  const handleComplete = async (t: Task, url?: string, text?: string) => {
     if (!user) return;
-    if (t.attachment_required && !url) return;
+    if (t.attachment_required) {
+      const isText = t.attachment_type === 'text';
+      if (isText && !text?.trim()) return;
+      if (!isText && !url?.trim()) return;
+    }
     try {
       await api.updateTask(t.id, {
         status: 'completed',
         completed_at: new Date().toISOString(),
         ...(url && { attachment_url: url }),
+        ...(text && { attachment_text: text }),
       });
       setTasks(await api.getTasks());
       setCompleteTask(null);
       setAttachmentUrl('');
+      setAttachmentText('');
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const handleStartEarly = async (t: Task) => {
+    if (!user) return;
+    try {
+      const today = new Date().toISOString().split('T')[0];
+      await api.updateTask(t.id, { start_date: today });
+      setTasks(await api.getTasks());
     } catch (err) {
       console.error(err);
     }
@@ -103,6 +122,7 @@ export const TaskTable: React.FC = () => {
                 <th className="text-left py-3 px-2">Name</th>
                 <th className="text-left py-3 px-2">City</th>
                 <th className="text-left py-3 px-2">Task</th>
+                <th className="text-left py-3 px-2">Description</th>
                 <th className="text-left py-3 px-2">Attachment</th>
                 <th className="text-left py-3 px-2">Status</th>
                 <th className="text-left py-3 px-2">Pending Days</th>
@@ -120,6 +140,9 @@ export const TaskTable: React.FC = () => {
                   <td className="py-3 px-2">{t.assigned_to_name}</td>
                   <td className="py-3 px-2">{t.assigned_to_city || '-'}</td>
                   <td className="py-3 px-2">{t.title}</td>
+                  <td className="py-3 px-2 max-w-[150px] truncate" title={t.description}>
+                    {t.description || '-'}
+                  </td>
                   <td className="py-3 px-2">
                     {t.attachment_required ? (
                       <span className="text-amber-600 flex items-center gap-1">
@@ -202,6 +225,7 @@ export const TaskTable: React.FC = () => {
           <thead>
             <tr className="border-b border-slate-200">
               <th className="text-left py-3 px-2">Title</th>
+              <th className="text-left py-3 px-2">Description</th>
               <th className="text-left py-3 px-2">Assigned To</th>
               <th className="text-left py-3 px-2">Start Date</th>
               <th className="text-left py-3 px-2">Due Date</th>
@@ -225,6 +249,9 @@ export const TaskTable: React.FC = () => {
                     {onHoliday && (
                       <span className="ml-2 text-xs text-orange-600">(Holiday)</span>
                     )}
+                  </td>
+                  <td className="py-3 px-2 max-w-[200px] truncate" title={t.description}>
+                    {t.description || '-'}
                   </td>
                   <td className="py-3 px-2">{t.assigned_to_name}</td>
                   <td className="py-3 px-2">{t.start_date || '-'}</td>
@@ -257,9 +284,19 @@ export const TaskTable: React.FC = () => {
                   </td>
                   {!isManager && t.assigned_to_id === user?.id && t.status !== 'completed' && (
                     <td className="py-3 px-2">
-                      <Button size="sm" variant="success" onClick={() => handleCompleteClick(t)}>
-                        Mark Complete
-                      </Button>
+                      <div className="flex flex-col gap-1">
+                        <Button size="sm" variant="success" onClick={() => handleCompleteClick(t)}>
+                          Mark Complete
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="secondary"
+                          onClick={() => handleStartEarly(t)}
+                          title="Start this task early (sets start date to today)"
+                        >
+                          Start Early
+                        </Button>
+                      </div>
                     </td>
                   )}
                 </tr>
@@ -272,27 +309,50 @@ export const TaskTable: React.FC = () => {
       {completeTask && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-xl p-6 max-w-md w-full">
-            <h3 className="text-lg font-semibold mb-2">Upload Attachment Required</h3>
+            <h3 className="text-lg font-semibold mb-2">
+              {completeTask.attachment_type === 'text' ? 'Text Required' : 'Upload Attachment Required'}
+            </h3>
             <p className="text-sm text-slate-600 mb-4">
               {completeTask.attachment_description || 'Please provide the required attachment.'}
             </p>
-            <input
-              type="url"
-              value={attachmentUrl}
-              onChange={(e) => setAttachmentUrl(e.target.value)}
-              placeholder="Paste attachment URL (e.g. Google Drive link)"
-              className="w-full h-10 rounded-lg border border-slate-300 px-3 text-sm mb-4"
-              required
-            />
+            {completeTask.attachment_type === 'text' ? (
+              <textarea
+                value={attachmentText}
+                onChange={(e) => setAttachmentText(e.target.value)}
+                placeholder="Enter your text here..."
+                rows={4}
+                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm mb-4"
+                required
+              />
+            ) : (
+              <input
+                type="url"
+                value={attachmentUrl}
+                onChange={(e) => setAttachmentUrl(e.target.value)}
+                placeholder="Paste media URL (e.g. Google Drive, cloud link for photo/video)"
+                className="w-full h-10 rounded-lg border border-slate-300 px-3 text-sm mb-4"
+                required
+              />
+            )}
             <div className="flex gap-2 justify-end">
-              <Button variant="secondary" onClick={() => { setCompleteTask(null); setAttachmentUrl(''); }}>
+              <Button variant="secondary" onClick={() => { setCompleteTask(null); setAttachmentUrl(''); setAttachmentText(''); }}>
                 Cancel
               </Button>
               <Button
-                onClick={() => handleComplete(completeTask, attachmentUrl)}
-                disabled={!attachmentUrl.trim()}
+                onClick={() =>
+                  handleComplete(
+                    completeTask,
+                    completeTask.attachment_type === 'text' ? undefined : attachmentUrl,
+                    completeTask.attachment_type === 'text' ? attachmentText : undefined
+                  )
+                }
+                disabled={
+                  completeTask.attachment_type === 'text'
+                    ? !attachmentText.trim()
+                    : !attachmentUrl.trim()
+                }
               >
-                Complete with Attachment
+                Complete
               </Button>
             </div>
           </div>

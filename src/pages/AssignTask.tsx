@@ -19,8 +19,10 @@ export const AssignTask: React.FC = () => {
   const [priority, setPriority] = useState<TaskPriority>('medium');
   const [recurring, setRecurring] = useState<RecurringType>('none');
   const [attachmentRequired, setAttachmentRequired] = useState(false);
+  const [attachmentType, setAttachmentType] = useState<'media' | 'text'>('media');
   const [attachmentDesc, setAttachmentDesc] = useState('');
   const [showAttachmentModal, setShowAttachmentModal] = useState(false);
+  const [recurringDays, setRecurringDays] = useState<number[]>([]);
   const [assignedToId, setAssignedToId] = useState('');
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState('');
@@ -39,8 +41,23 @@ export const AssignTask: React.FC = () => {
 
   useEffect(() => {
     if (attachmentRequired) setShowAttachmentModal(true);
-    else setAttachmentDesc('');
+    else { setAttachmentDesc(''); setAttachmentType('media'); }
   }, [attachmentRequired]);
+
+  const DAYS = [
+    { value: 0, label: 'Mon' },
+    { value: 1, label: 'Tue' },
+    { value: 2, label: 'Wed' },
+    { value: 3, label: 'Thu' },
+    { value: 4, label: 'Fri' },
+    { value: 5, label: 'Sat' },
+    { value: 6, label: 'Sun' },
+  ];
+  const toggleDay = (d: number) => {
+    setRecurringDays((prev) =>
+      prev.includes(d) ? prev.filter((x) => x !== d) : [...prev, d].sort((a, b) => a - b)
+    );
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -58,7 +75,9 @@ export const AssignTask: React.FC = () => {
         priority,
         status: 'pending',
         recurring,
+        recurring_days: recurring === 'daily' && recurringDays.length > 0 ? recurringDays : undefined,
         attachment_required: attachmentRequired,
+        attachment_type: attachmentRequired ? attachmentType : undefined,
         attachment_description: attachmentRequired ? attachmentDesc : undefined,
         assigned_to_id: assignedToId,
         assigned_to_name: assignee?.name || '',
@@ -86,6 +105,7 @@ export const AssignTask: React.FC = () => {
       setDueDate('');
       setPriority('medium');
       setRecurring('none');
+      setRecurringDays([]);
       setAttachmentRequired(false);
       setAttachmentDesc('');
       setAssignedToId('');
@@ -165,6 +185,27 @@ export const AssignTask: React.FC = () => {
               </option>
             ))}
           </select>
+          {recurring === 'daily' && (
+            <div className="mt-2">
+              <p className="text-xs text-slate-600 mb-2">On which days of the week?</p>
+              <div className="flex flex-wrap gap-2">
+                {DAYS.map((d) => (
+                  <button
+                    key={d.value}
+                    type="button"
+                    onClick={() => toggleDay(d.value)}
+                    className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
+                      recurringDays.includes(d.value)
+                        ? 'bg-teal-600 text-white'
+                        : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                    }`}
+                  >
+                    {d.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
         <div className="flex items-center gap-2">
           <input
@@ -205,21 +246,46 @@ export const AssignTask: React.FC = () => {
       {showAttachmentModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-xl p-6 max-w-md w-full">
-            <h3 className="text-lg font-semibold mb-2">Attachment Type</h3>
-            <p className="text-sm text-slate-600 mb-4">
-              Describe the type of attachment required for this task.
-            </p>
-            <textarea
-              value={attachmentDesc}
-              onChange={(e) => setAttachmentDesc(e.target.value)}
-              rows={3}
-              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm mb-4"
-              placeholder="e.g. Photo of completed work, signed document..."
-            />
+            <h3 className="text-lg font-semibold mb-2">Attachment Required</h3>
+            <div className="space-y-4 mb-4">
+              <div>
+                <p className="text-sm font-medium text-slate-700 mb-2">Type</p>
+                <div className="flex gap-4">
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="radio"
+                      name="attachmentType"
+                      checked={attachmentType === 'media'}
+                      onChange={() => setAttachmentType('media')}
+                      className="text-teal-600"
+                    />
+                    <span>Media (photo/video upload)</span>
+                  </label>
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="radio"
+                      name="attachmentType"
+                      checked={attachmentType === 'text'}
+                      onChange={() => setAttachmentType('text')}
+                      className="text-teal-600"
+                    />
+                    <span>Text</span>
+                  </label>
+                </div>
+              </div>
+              <div>
+                <p className="text-sm text-slate-600 mb-1">Description (optional)</p>
+                <textarea
+                  value={attachmentDesc}
+                  onChange={(e) => setAttachmentDesc(e.target.value)}
+                  rows={2}
+                  className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+                  placeholder="e.g. Photo of completed work..."
+                />
+              </div>
+            </div>
             <div className="flex gap-2 justify-end">
-              <Button variant="secondary" onClick={() => setShowAttachmentModal(false)}>
-                Close
-              </Button>
+              <Button variant="secondary" onClick={() => setShowAttachmentModal(false)}>Close</Button>
               <Button onClick={() => setShowAttachmentModal(false)}>Done</Button>
             </div>
           </div>

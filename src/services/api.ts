@@ -41,7 +41,9 @@ const docToTask = (d: any): Task => {
     status: data.status || 'pending',
     recurring: data.recurring || 'none',
     attachment_required: data.attachment_required || false,
+    attachment_type: data.attachment_type,
     attachment_description: data.attachment_description,
+    recurring_days: data.recurring_days,
     assigned_to_id: data.assigned_to_id || '',
     assigned_to_name: data.assigned_to_name || '',
     assigned_to_city: data.assigned_to_city,
@@ -56,6 +58,7 @@ const docToTask = (d: any): Task => {
     audited_at: data.audited_at ? timestampToISO(data.audited_at) : undefined,
     audited_by: data.audited_by,
     attachment_url: data.attachment_url,
+    attachment_text: data.attachment_text,
   };
 };
 

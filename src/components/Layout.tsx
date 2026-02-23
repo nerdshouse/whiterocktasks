@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useLocation, Navigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { UserRole } from '../types';
+import { api } from '../services/api';
+import { Task, UserRole } from '../types';
 import {
   ClipboardList,
   Trash2,
@@ -14,6 +15,7 @@ import {
   X,
   Users,
   Paperclip,
+  CheckCircle,
 } from 'lucide-react';
 
 const NavItem = ({
@@ -45,6 +47,15 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
   const { user, logout } = useAuth();
   const location = useLocation();
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [completedTasks, setCompletedTasks] = useState<Task[]>([]);
+
+  useEffect(() => {
+    if (user && !location.pathname.includes('login')) {
+      api.getTasks().then((t) =>
+        setCompletedTasks(t.filter((x) => x.status === 'completed').slice(0, 10))
+      );
+    }
+  }, [user, location.pathname]);
 
   if (!user) return <>{children}</>;
 
@@ -90,6 +101,24 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
               active={location.pathname === item.to}
             />
           ))}
+          {!isAuditor && completedTasks.length > 0 && (
+            <div className="mt-6 pt-4 border-t border-slate-200">
+              <p className="px-4 py-2 text-xs font-semibold text-slate-500 uppercase">Completed Tasks</p>
+              <div className="space-y-1 max-h-48 overflow-y-auto">
+                {completedTasks.map((t) => (
+                  <Link
+                    key={t.id}
+                    to={`/tasks?highlight=${t.id}`}
+                    onClick={() => setMobileOpen(false)}
+                    className="block px-4 py-2 text-sm text-slate-600 hover:bg-slate-100 rounded-lg truncate"
+                  >
+                    <CheckCircle size={14} className="inline mr-2 text-green-500" />
+                    {t.title}
+                  </Link>
+                ))}
+              </div>
+            </div>
+          )}
         </nav>
         <div className="p-4 border-t border-slate-200">
           <button
@@ -128,6 +157,22 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
                 onClick={() => setMobileOpen(false)}
               />
             ))}
+            {!isAuditor && completedTasks.length > 0 && (
+              <div className="mt-4 pt-4 border-t">
+                <p className="px-4 py-2 text-xs font-semibold text-slate-500">Completed Tasks</p>
+                {completedTasks.map((t) => (
+                  <Link
+                    key={t.id}
+                    to={`/tasks?highlight=${t.id}`}
+                    onClick={() => setMobileOpen(false)}
+                    className="block px-4 py-2 text-sm text-slate-600"
+                  >
+                    <CheckCircle size={14} className="inline mr-2 text-green-500" />
+                    {t.title}
+                  </Link>
+                ))}
+              </div>
+            )}
             <button
               onClick={logout}
               className="flex items-center gap-3 px-4 py-3 w-full text-red-600"
