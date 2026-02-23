@@ -30,48 +30,61 @@ export const Login: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-slate-100 p-4">
-      <div className="bg-white p-8 rounded-xl shadow-lg w-full max-w-md">
-        <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold font-serif text-slate-800">
-            WhiteRock<span className="text-xs align-top">TM</span>
-          </h1>
-          <p className="text-slate-500 mt-2">Task Management</p>
-        </div>
-        {error && (
-          <div className="bg-red-50 border border-red-200 text-red-700 p-3 rounded-lg mb-4 flex items-center gap-2">
-            <AlertTriangle size={18} />
-            <span className="text-sm">{error}</span>
+    <div className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-slate-50 via-white to-teal-50/30">
+      <div className="w-full max-w-md">
+        <div className="card p-8 shadow-lg shadow-slate-200/50">
+          <div className="text-center mb-8">
+            <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-teal-600 text-white mb-4 shadow-lg shadow-teal-600/25">
+              <span className="text-2xl font-bold">W</span>
+            </div>
+            <h1 className="text-2xl font-bold text-slate-800 tracking-tight">
+              WhiteRock<span className="text-[10px] align-top ml-0.5 font-normal text-slate-400">TM</span>
+            </h1>
+            <p className="text-slate-500 mt-1.5 text-sm font-medium">Task Management</p>
           </div>
-        )}
-        <a
-          href="#/seed"
-          className="block text-sm text-teal-600 hover:underline mb-4"
-        >
-          Seed demo users (password: password123)
-        </a>
-        <form onSubmit={handleLogin} className="space-y-6">
-          <Input
-            label="Email"
-            type="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            required
-            placeholder="you@company.com"
-          />
-          <Input
-            label="Password"
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            required
-            placeholder="••••••••"
-          />
-          <Button type="submit" className="w-full" isLoading={loading}>
-            Sign In
-          </Button>
-        </form>
+          {error && (
+            <div className="bg-red-50 border border-red-100 text-red-700 p-4 rounded-xl mb-6 flex items-start gap-3">
+              <AlertTriangle size={20} className="shrink-0 mt-0.5 text-red-500" />
+              <div className="text-sm">
+                <p className="font-medium">{error}</p>
+                {error === 'Invalid email or password' && (
+                  <p className="mt-2 text-red-600/90">
+                    No account yet? <a href="#/seed" className="font-medium underline underline-offset-2">Create demo users first</a>, then use <strong>owner@whiterock.co.in</strong> / <strong>password123</strong>.
+                  </p>
+                )}
+              </div>
+            </div>
+          )}
+          <a
+            href="#/seed"
+            className="block text-sm text-teal-600 hover:text-teal-700 font-medium mb-5"
+          >
+            First time? Seed demo users (all use password: password123)
+          </a>
+          <form onSubmit={handleLogin} className="space-y-5">
+            <Input
+              label="Email"
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              required
+              placeholder="you@company.com"
+            />
+            <Input
+              label="Password"
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
+              placeholder="••••••••"
+            />
+            <Button type="submit" className="w-full h-11 text-sm font-semibold" isLoading={loading}>
+              Sign in
+            </Button>
+          </form>
+        </div>
+        <p className="text-center text-xs text-slate-400 mt-6">WhiteRock™ Task Management</p>
       </div>
     </div>
   );
-};
+}

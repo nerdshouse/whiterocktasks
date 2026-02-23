@@ -44,11 +44,11 @@ export const RedZone: React.FC = () => {
   if (filtered.length === 0 && !loading) {
     return (
       <div>
-        <h1 className="text-2xl font-bold text-slate-800 mb-6 flex items-center gap-2">
-          <AlertTriangle className="text-red-500" />
+        <h1 className="page-title flex items-center gap-2">
+          <AlertTriangle className="text-red-500" size={24} />
           Red Zone (Overdue Tasks)
         </h1>
-        <p className="text-slate-600 mb-6">
+        <p className="page-subtitle">
           Tasks that are past their due date and not yet completed.
         </p>
         <div className="bg-green-50 border border-green-200 rounded-xl p-6 text-center text-green-800">
@@ -60,13 +60,13 @@ export const RedZone: React.FC = () => {
 
   return (
     <div>
-      <h1 className="text-2xl font-bold text-slate-800 mb-6 flex items-center gap-2">
-        <AlertTriangle className="text-red-500" />
-        Red Zone (Overdue Tasks)
-      </h1>
-      <p className="text-slate-600 mb-6">
-        Tasks that are past their due date and not yet completed.
-      </p>
+      <h1 className="page-title flex items-center gap-2">
+          <AlertTriangle className="text-red-500" size={24} />
+          Red Zone (Overdue Tasks)
+        </h1>
+        <p className="page-subtitle">
+          Tasks that are past their due date and not yet completed.
+        </p>
       {filtered.length === 0 ? (
         <div className="bg-green-50 border border-green-200 rounded-xl p-6 text-center text-green-800">
           No overdue tasks. Great job!

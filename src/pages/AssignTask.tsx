@@ -122,7 +122,7 @@ export const AssignTask: React.FC = () => {
 
   return (
     <div>
-      <h1 className="text-2xl font-bold text-slate-800 mb-6">Assign Task</h1>
+      <h1 className="page-title">Assign Task</h1>
       <form onSubmit={handleSubmit} className="space-y-6 max-w-xl">
         <Input
           label="Task Title"

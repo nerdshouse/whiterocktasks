@@ -1,23 +1,33 @@
 import { initializeApp } from 'firebase/app';
 import { getAuth, setPersistence, browserLocalPersistence } from 'firebase/auth';
 import { getFirestore, Timestamp } from 'firebase/firestore';
+import { getStorage } from 'firebase/storage';
+import { getAnalytics, isSupported } from 'firebase/analytics';
 
 const firebaseConfig = {
-  apiKey: import.meta.env.VITE_FIREBASE_API_KEY || 'AIzaSyAvsR0zWKo0_bgEUpTh0NGULAPIHthpQKo',
-  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || 'whiterock-crm-5b59c.firebaseapp.com',
-  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || 'whiterock-crm-5b59c',
-  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || 'whiterock-crm-5b59c.firebasestorage.app',
-  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || '533948349234',
-  appId: import.meta.env.VITE_FIREBASE_APP_ID || '1:533948349234:web:380283becb003b6a5e352b',
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY || 'AIzaSyCCM8CQ37vTZeD53TpgdJXVpW2aGWaG4ck',
+  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || 'whiterock-tasks.firebaseapp.com',
+  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || 'whiterock-tasks',
+  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || 'whiterock-tasks.firebasestorage.app',
+  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || '472115769335',
+  appId: import.meta.env.VITE_FIREBASE_APP_ID || '1:472115769335:web:4dbef707474d99d4d8c8f2',
+  measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID || 'G-5GD001TYV0',
 };
 
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 const auth = getAuth(app);
+const storage = getStorage(app);
 
 setPersistence(auth, browserLocalPersistence).catch(console.warn);
 
-export { db, auth, app };
+// Analytics only in supported browser environments
+let analytics: ReturnType<typeof getAnalytics> | null = null;
+isSupported().then((yes) => {
+  if (yes) analytics = getAnalytics(app);
+});
+
+export { db, auth, app, storage, analytics };
 
 export const timestampToISO = (t: any): string => {
   if (t?.toDate) return t.toDate().toISOString();

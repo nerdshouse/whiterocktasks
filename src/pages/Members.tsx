@@ -71,7 +71,7 @@ export const Members: React.FC = () => {
   return (
     <div>
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
-        <h1 className="text-2xl font-bold text-slate-800">Members</h1>
+        <h1 className="page-title mb-0">Members</h1>
         {isOwner && (
           <Button onClick={() => setShowAddForm(!showAddForm)}>
             <UserPlus size={18} className="mr-2" />

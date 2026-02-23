@@ -121,6 +121,52 @@ export function computeKpiByMember(
   return rows.sort((a, b) => b.total_assigned - a.total_assigned);
 }
 
+const MAX_IMAGE_WIDTH = 1200;
+const JPEG_QUALITY = 0.75;
+
+/** Compress an image file for faster upload (resize + JPEG). Returns original file if not an image or on error. */
+export function compressImageForUpload(file: File): Promise<File> {
+  if (!file.type.startsWith('image/')) return Promise.resolve(file);
+  return new Promise((resolve) => {
+    const img = document.createElement('img');
+    const url = URL.createObjectURL(file);
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+      const w = img.naturalWidth;
+      const h = img.naturalHeight;
+      const scale = w > MAX_IMAGE_WIDTH ? MAX_IMAGE_WIDTH / w : 1;
+      const cw = Math.round(w * scale);
+      const ch = Math.round(h * scale);
+      const canvas = document.createElement('canvas');
+      canvas.width = cw;
+      canvas.height = ch;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) {
+        resolve(file);
+        return;
+      }
+      ctx.drawImage(img, 0, 0, cw, ch);
+      canvas.toBlob(
+        (blob) => {
+          if (blob) {
+            const name = file.name.replace(/\.[^.]+$/, '.jpg');
+            resolve(new File([blob], name, { type: 'image/jpeg' }));
+          } else {
+            resolve(file);
+          }
+        },
+        'image/jpeg',
+        JPEG_QUALITY
+      );
+    };
+    img.onerror = () => {
+      URL.revokeObjectURL(url);
+      resolve(file);
+    };
+    img.src = url;
+  });
+}
+
 export function getPendingDays(dueDate: string): number {
   const today = new Date();
   today.setHours(0, 0, 0, 0);

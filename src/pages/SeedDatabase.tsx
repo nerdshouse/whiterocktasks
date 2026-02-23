@@ -59,9 +59,9 @@ export const SeedDatabase: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-slate-100 p-4">
-      <div className="bg-white p-8 rounded-xl shadow-lg w-full max-w-md">
-        <h1 className="text-xl font-bold text-slate-800 mb-2">Seed Demo Users</h1>
+    <div className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-slate-50 via-white to-teal-50/30">
+      <div className="card p-8 w-full max-w-md shadow-lg shadow-slate-200/50">
+        <h1 className="text-xl font-bold text-slate-800 tracking-tight mb-2">Seed Demo Users</h1>
         <p className="text-slate-600 text-sm mb-6">
           Creates test users for each role. All use password: <strong>password123</strong>
         </p>

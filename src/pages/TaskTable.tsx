@@ -3,9 +3,11 @@ import { useAuth } from '../contexts/AuthContext';
 import { api } from '../services/api';
 import { Task, UserRole } from '../types';
 import { useSearchParams } from 'react-router-dom';
+import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { storage } from '../lib/firebase';
 import { Button } from '../components/ui/Button';
-import { isHoliday } from '../lib/utils';
-import { Paperclip, Check, X, HelpCircle } from 'lucide-react';
+import { isHoliday, compressImageForUpload } from '../lib/utils';
+import { Paperclip, Check, X, HelpCircle, ExternalLink, FileText } from 'lucide-react';
 
 export const TaskTable: React.FC = () => {
   const { user } = useAuth();
@@ -18,6 +20,10 @@ export const TaskTable: React.FC = () => {
   const [completeTask, setCompleteTask] = useState<Task | null>(null);
   const [attachmentUrl, setAttachmentUrl] = useState('');
   const [attachmentText, setAttachmentText] = useState('');
+  const [attachmentFile, setAttachmentFile] = useState<File | null>(null);
+  const [uploading, setUploading] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
+  const [viewAttachment, setViewAttachment] = useState<{ url?: string; text?: string } | null>(null);
 
   const isAuditor = user?.role === UserRole.AUDITOR;
   const isOwner = user?.role === UserRole.OWNER;
@@ -49,8 +55,33 @@ export const TaskTable: React.FC = () => {
       setCompleteTask(t);
       setAttachmentUrl('');
       setAttachmentText('');
+      setAttachmentFile(null);
+      setUploading(false);
+      setUploadError(null);
     } else {
       handleComplete(t, undefined, undefined);
+    }
+  };
+
+  const handleMediaFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !completeTask) return;
+    setAttachmentUrl('');
+    setUploadError(null);
+    setAttachmentFile(file);
+    setUploading(true);
+    const path = `task-attachments/${completeTask.id}/${Date.now()}_${file.name}`;
+    const storageRef = ref(storage, path);
+    try {
+      const toUpload = await compressImageForUpload(file);
+      await uploadBytes(storageRef, toUpload);
+      const url = await getDownloadURL(storageRef);
+      setAttachmentUrl(url);
+    } catch (err: any) {
+      setUploadError(err?.message || 'Upload failed');
+      setAttachmentFile(null);
+    } finally {
+      setUploading(false);
     }
   };
 
@@ -72,20 +103,21 @@ export const TaskTable: React.FC = () => {
       setCompleteTask(null);
       setAttachmentUrl('');
       setAttachmentText('');
+      setAttachmentFile(null);
+      setUploading(false);
+      setUploadError(null);
     } catch (err) {
       console.error(err);
     }
   };
 
-  const handleStartEarly = async (t: Task) => {
-    if (!user) return;
-    try {
-      const today = new Date().toISOString().split('T')[0];
-      await api.updateTask(t.id, { start_date: today });
-      setTasks(await api.getTasks());
-    } catch (err) {
-      console.error(err);
-    }
+  const closeCompleteModal = () => {
+    setCompleteTask(null);
+    setAttachmentUrl('');
+    setAttachmentText('');
+    setAttachmentFile(null);
+    setUploading(false);
+    setUploadError(null);
   };
 
   const handleAudit = async (taskId: string, status: 'audited' | 'bogus' | 'unclear') => {
@@ -111,40 +143,54 @@ export const TaskTable: React.FC = () => {
   if (isAuditor) {
     return (
       <div>
-        <h1 className="text-2xl font-bold text-slate-800 mb-6">Auditor View</h1>
-        <p className="text-slate-600 mb-6">
+        <h1 className="page-title">Auditor View</h1>
+        <p className="page-subtitle">
           Tasks pending audit. Mark as audited, bogus, or unclear.
         </p>
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
+        <div className="table-container">
+          <table>
             <thead>
-              <tr className="border-b border-slate-200">
-                <th className="text-left py-3 px-2">Name</th>
-                <th className="text-left py-3 px-2">City</th>
-                <th className="text-left py-3 px-2">Task</th>
-                <th className="text-left py-3 px-2">Description</th>
-                <th className="text-left py-3 px-2">Attachment</th>
-                <th className="text-left py-3 px-2">Status</th>
-                <th className="text-left py-3 px-2">Pending Days</th>
-                <th className="text-left py-3 px-2">Actions</th>
+              <tr>
+                <th>Name</th>
+                <th>City</th>
+                <th>Task</th>
+                <th>Description</th>
+                <th>Attachment</th>
+                <th>Status</th>
+                <th>Pending Days</th>
+                <th>Actions</th>
               </tr>
             </thead>
             <tbody>
               {filteredTasks.map((t) => (
-                <tr
-                  key={t.id}
-                  className={`border-b border-slate-100 hover:bg-slate-50 ${
-                    highlightId === t.id ? 'bg-amber-50' : ''
-                  }`}
-                >
-                  <td className="py-3 px-2">{t.assigned_to_name}</td>
-                  <td className="py-3 px-2">{t.assigned_to_city || '-'}</td>
-                  <td className="py-3 px-2">{t.title}</td>
-                  <td className="py-3 px-2 max-w-[150px] truncate" title={t.description}>
+                <tr key={t.id} className={highlightId === t.id ? 'bg-amber-50' : ''}>
+                  <td>{t.assigned_to_name}</td>
+                  <td>{t.assigned_to_city || '-'}</td>
+                  <td>{t.title}</td>
+                  <td className="max-w-[150px] truncate" title={t.description}>
                     {t.description || '-'}
                   </td>
-                  <td className="py-3 px-2">
-                    {t.attachment_required ? (
+                  <td>
+                    {t.attachment_url ? (
+                      <a
+                        href={t.attachment_url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-teal-600 hover:underline text-sm inline-flex items-center gap-1"
+                      >
+                        <ExternalLink size={14} />
+                        View
+                      </a>
+                    ) : t.attachment_text ? (
+                      <button
+                        type="button"
+                        onClick={() => setViewAttachment({ text: t.attachment_text })}
+                        className="text-teal-600 hover:underline text-sm inline-flex items-center gap-1"
+                      >
+                        <FileText size={14} />
+                        View
+                      </button>
+                    ) : t.attachment_required ? (
                       <span className="text-amber-600 flex items-center gap-1">
                         <Paperclip size={14} /> Required
                       </span>
@@ -152,11 +198,11 @@ export const TaskTable: React.FC = () => {
                       '-'
                     )}
                   </td>
-                  <td className="py-3 px-2">
+                  <td>
                     <span
-                      className={`px-2 py-0.5 rounded text-xs ${
+                      className={`inline-flex px-2 py-0.5 rounded-lg text-xs font-medium ${
                         t.audit_status === 'audited'
-                          ? 'bg-green-100 text-green-800'
+                          ? 'bg-emerald-100 text-emerald-800'
                           : t.audit_status === 'bogus'
                           ? 'bg-red-100 text-red-800'
                           : t.audit_status === 'unclear'
@@ -167,8 +213,8 @@ export const TaskTable: React.FC = () => {
                       {t.audit_status || 'pending'}
                     </span>
                   </td>
-                  <td className="py-3 px-2">{getPendingDays(t.due_date)}</td>
-                  <td className="py-3 px-2">
+                  <td>{getPendingDays(t.due_date)}</td>
+                  <td>
                     {(!t.audit_status || t.audit_status === 'pending') && (
                       <div className="flex gap-1">
                         <Button
@@ -207,7 +253,7 @@ export const TaskTable: React.FC = () => {
   return (
     <div>
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
-        <h1 className="text-2xl font-bold text-slate-800">Task Table</h1>
+        <h1 className="page-title mb-0">Task Table</h1>
         {isDoer && (
           <div className="flex items-center gap-2">
             <label className="text-sm text-slate-600">Filter by Start Date:</label>
@@ -220,18 +266,19 @@ export const TaskTable: React.FC = () => {
           </div>
         )}
       </div>
-      <div className="overflow-x-auto">
-        <table className="w-full text-sm">
+      <div className="table-container">
+        <table>
           <thead>
-            <tr className="border-b border-slate-200">
-              <th className="text-left py-3 px-2">Title</th>
-              <th className="text-left py-3 px-2">Description</th>
-              <th className="text-left py-3 px-2">Assigned To</th>
-              <th className="text-left py-3 px-2">Start Date</th>
-              <th className="text-left py-3 px-2">Due Date</th>
-              <th className="text-left py-3 px-2">Priority</th>
-              <th className="text-left py-3 px-2">Status</th>
-              {!isManager && <th className="text-left py-3 px-2">Action</th>}
+            <tr>
+              <th>Title</th>
+              <th>Description</th>
+              <th>Assigned To</th>
+              <th>Start Date</th>
+              <th>Due Date</th>
+              <th>Priority</th>
+              <th>Status</th>
+              <th>Attachment</th>
+              <th>Action</th>
             </tr>
           </thead>
           <tbody>
@@ -240,25 +287,23 @@ export const TaskTable: React.FC = () => {
               return (
                 <tr
                   key={t.id}
-                  className={`border-b border-slate-100 hover:bg-slate-50 ${
-                    highlightId === t.id ? 'bg-amber-50' : ''
-                  } ${onHoliday ? 'bg-orange-50' : ''}`}
+                  className={`${highlightId === t.id ? 'bg-amber-50' : ''} ${onHoliday ? 'bg-orange-50/50' : ''}`}
                 >
-                  <td className="py-3 px-2">
-                    <span className="font-medium">{t.title}</span>
+                  <td>
+                    <span className="font-medium text-slate-800">{t.title}</span>
                     {onHoliday && (
                       <span className="ml-2 text-xs text-orange-600">(Holiday)</span>
                     )}
                   </td>
-                  <td className="py-3 px-2 max-w-[200px] truncate" title={t.description}>
+                  <td className="max-w-[200px] truncate" title={t.description}>
                     {t.description || '-'}
                   </td>
-                  <td className="py-3 px-2">{t.assigned_to_name}</td>
-                  <td className="py-3 px-2">{t.start_date || '-'}</td>
-                  <td className="py-3 px-2">{t.due_date}</td>
-                  <td className="py-3 px-2">
+                  <td>{t.assigned_to_name}</td>
+                  <td>{t.start_date || '-'}</td>
+                  <td>{t.due_date}</td>
+                  <td>
                     <span
-                      className={`px-2 py-0.5 rounded text-xs ${
+                      className={`inline-flex px-2 py-0.5 rounded-lg text-xs font-medium ${
                         t.priority === 'urgent'
                           ? 'bg-red-100 text-red-800'
                           : t.priority === 'high'
@@ -269,11 +314,11 @@ export const TaskTable: React.FC = () => {
                       {t.priority}
                     </span>
                   </td>
-                  <td className="py-3 px-2">
+                  <td>
                     <span
-                      className={`px-2 py-0.5 rounded text-xs ${
+                      className={`inline-flex px-2 py-0.5 rounded-lg text-xs font-medium ${
                         t.status === 'completed'
-                          ? 'bg-green-100 text-green-800'
+                          ? 'bg-emerald-100 text-emerald-800'
                           : t.status === 'overdue'
                           ? 'bg-red-100 text-red-800'
                           : 'bg-slate-100 text-slate-600'
@@ -282,23 +327,39 @@ export const TaskTable: React.FC = () => {
                       {t.status}
                     </span>
                   </td>
-                  {!isManager && t.assigned_to_id === user?.id && t.status !== 'completed' && (
-                    <td className="py-3 px-2">
-                      <div className="flex flex-col gap-1">
-                        <Button size="sm" variant="success" onClick={() => handleCompleteClick(t)}>
-                          Mark Complete
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="secondary"
-                          onClick={() => handleStartEarly(t)}
-                          title="Start this task early (sets start date to today)"
-                        >
-                          Start Early
-                        </Button>
-                      </div>
-                    </td>
-                  )}
+                  <td>
+                    {t.attachment_url ? (
+                      <a
+                        href={t.attachment_url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-teal-600 hover:underline text-sm inline-flex items-center gap-1"
+                      >
+                        <ExternalLink size={14} />
+                        View
+                      </a>
+                    ) : t.attachment_text ? (
+                      <button
+                        type="button"
+                        onClick={() => setViewAttachment({ text: t.attachment_text })}
+                        className="text-teal-600 hover:underline text-sm inline-flex items-center gap-1"
+                      >
+                        <FileText size={14} />
+                        View
+                      </button>
+                    ) : (
+                      '-'
+                    )}
+                  </td>
+                  <td className="py-3 px-2">
+                    {t.assigned_to_id === user?.id && t.status !== 'completed' ? (
+                      <Button size="sm" variant="success" onClick={() => handleCompleteClick(t)}>
+                        Mark Complete
+                      </Button>
+                    ) : (
+                      '-'
+                    )}
+                  </td>
                 </tr>
               );
             })}
@@ -307,35 +368,75 @@ export const TaskTable: React.FC = () => {
       </div>
 
       {completeTask && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl p-6 max-w-md w-full">
+        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="card p-6 max-w-md w-full shadow-xl">
             <h3 className="text-lg font-semibold mb-2">
-              {completeTask.attachment_type === 'text' ? 'Text Required' : 'Upload Attachment Required'}
+              {completeTask.attachment_type === 'text'
+                ? 'Text required to mark complete'
+                : 'Upload media required to mark complete'}
             </h3>
             <p className="text-sm text-slate-600 mb-4">
-              {completeTask.attachment_description || 'Please provide the required attachment.'}
+              {completeTask.attachment_description ||
+                (completeTask.attachment_type === 'text'
+                  ? 'You must enter text below to complete this task.'
+                  : 'Upload a photo/video or paste a link to your media.')}
             </p>
             {completeTask.attachment_type === 'text' ? (
               <textarea
                 value={attachmentText}
                 onChange={(e) => setAttachmentText(e.target.value)}
-                placeholder="Enter your text here..."
+                placeholder="Enter your text here (required)..."
                 rows={4}
                 className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm mb-4"
                 required
               />
             ) : (
-              <input
-                type="url"
-                value={attachmentUrl}
-                onChange={(e) => setAttachmentUrl(e.target.value)}
-                placeholder="Paste media URL (e.g. Google Drive, cloud link for photo/video)"
-                className="w-full h-10 rounded-lg border border-slate-300 px-3 text-sm mb-4"
-                required
-              />
+              <div className="space-y-3 mb-4">
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">
+                    Upload photo or video
+                  </label>
+                  <input
+                    key={completeTask.id}
+                    type="file"
+                    accept="image/*,video/*"
+                    onChange={handleMediaFileSelect}
+                    className="block w-full text-sm text-slate-600 file:mr-3 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-teal-50 file:text-teal-700 hover:file:bg-teal-100"
+                  />
+                  {attachmentFile && (
+                    <p className="text-xs text-slate-500 mt-1">
+                      {attachmentFile.name}
+                      {uploading && ' — Uploading...'}
+                      {!uploading && attachmentUrl && ' — Done'}
+                    </p>
+                  )}
+                  {uploadError && (
+                    <p className="text-xs text-red-600 mt-1">{uploadError}</p>
+                  )}
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">
+                    Or paste media link
+                  </label>
+                  <input
+                    type="url"
+                    value={attachmentUrl}
+                    onChange={(e) => {
+                      setAttachmentUrl(e.target.value);
+                      setAttachmentFile(null);
+                      setUploadError(null);
+                    }}
+                    placeholder="e.g. Google Drive, cloud link for photo/video"
+                    className="w-full h-10 rounded-lg border border-slate-300 px-3 text-sm"
+                  />
+                </div>
+                <p className="text-xs text-slate-500">
+                  You must either upload a file or provide a link to mark this task complete.
+                </p>
+              </div>
             )}
             <div className="flex gap-2 justify-end">
-              <Button variant="secondary" onClick={() => { setCompleteTask(null); setAttachmentUrl(''); setAttachmentText(''); }}>
+              <Button variant="secondary" onClick={closeCompleteModal}>
                 Cancel
               </Button>
               <Button
@@ -354,6 +455,22 @@ export const TaskTable: React.FC = () => {
               >
                 Complete
               </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {viewAttachment && (
+        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center z-50 p-4" onClick={() => setViewAttachment(null)}>
+          <div className="card p-6 max-w-lg w-full max-h-[80vh] overflow-hidden flex flex-col shadow-xl" onClick={(e) => e.stopPropagation()}>
+            <h3 className="text-lg font-semibold mb-3">Attachment</h3>
+            {viewAttachment.text != null ? (
+              <pre className="flex-1 overflow-auto text-sm text-slate-700 whitespace-pre-wrap border border-slate-200 rounded-lg p-4 bg-slate-50">
+                {viewAttachment.text}
+              </pre>
+            ) : null}
+            <div className="mt-4 flex justify-end">
+              <Button variant="secondary" onClick={() => setViewAttachment(null)}>Close</Button>
             </div>
           </div>
         </div>

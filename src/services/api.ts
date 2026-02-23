@@ -286,23 +286,42 @@ export const api = {
     });
   },
 
-  // --- WhatsApp (placeholder - integrate with Twilio/WhatsApp Business API) ---
+  // --- WhatsApp (11za) ---
   sendTaskAssignmentWhatsApp: async (
     phone: string,
     task: { title: string; due_date: string; priority: TaskPriority; link: string; assigned_by: string }
   ): Promise<void> => {
-    const msg = `New Task Assigned\nTitle: ${task.title}\nDue: ${task.due_date}\nPriority: ${task.priority}\nAssigned by: ${task.assigned_by}\nLink: ${task.link}`;
-    console.log('[WhatsApp] Would send to', phone, ':', msg);
-    // TODO: Integrate with Twilio/WhatsApp Business API
+    const { sendTemplate } = await import('./whatsapp');
+    const templateName =
+      import.meta.env.VITE_11ZA_TEMPLATE_TASK_ASSIGNMENT || 'task_assignment';
+    await sendTemplate({
+      phone,
+      templateName,
+      bodyParams: [
+        task.title,
+        task.due_date,
+        task.priority,
+        task.assigned_by,
+        task.link,
+      ],
+    });
   },
 
   sendDailyTasksWhatsApp: async (
     phone: string,
     tasks: { title: string; due_date: string; priority: TaskPriority }[]
   ): Promise<void> => {
-    const lines = tasks.map((t) => `• ${t.title} (Due: ${t.due_date}, ${t.priority})`);
-    const msg = `Today's Tasks (${new Date().toISOString().split('T')[0]})\n\n${lines.join('\n')}`;
-    console.log('[WhatsApp] Would send daily digest to', phone, ':', msg);
-    // TODO: Integrate with Twilio/WhatsApp Business API + cron
+    const { sendTemplate } = await import('./whatsapp');
+    const templateName =
+      import.meta.env.VITE_11ZA_TEMPLATE_DAILY_TASKS || 'daily_tasks_reminder';
+    const date = new Date().toISOString().split('T')[0];
+    const taskList = tasks.length
+      ? tasks.map((t) => `${t.title} (Due: ${t.due_date}, ${t.priority})`).join('\n• ')
+      : 'No tasks due today.';
+    await sendTemplate({
+      phone,
+      templateName,
+      bodyParams: [date, taskList],
+    });
   },
 };

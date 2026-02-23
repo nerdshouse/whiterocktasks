@@ -52,7 +52,7 @@ export const Kpi: React.FC = () => {
 
   return (
     <div>
-      <h1 className="text-2xl font-bold text-slate-800 mb-6">KPI Dashboard</h1>
+      <h1 className="page-title">KPI Dashboard</h1>
       <p className="text-slate-600 mb-6">
         {isOwner ? 'Full team KPI.' : 'Your personal KPI.'} Tasks on holidays and during absence are excluded.
       </p>

@@ -4,7 +4,7 @@ import { api } from '../services/api';
 import { Holiday, Absence, UserRole } from '../types';
 import { Input } from '../components/ui/Input';
 import { Button } from '../components/ui/Button';
-import { Calendar } from 'lucide-react';
+import { Calendar, Database, CheckCircle, XCircle } from 'lucide-react';
 
 export const Settings: React.FC = () => {
   const { user } = useAuth();
@@ -16,6 +16,8 @@ export const Settings: React.FC = () => {
   const [absenceTo, setAbsenceTo] = useState('');
   const [absenceReason, setAbsenceReason] = useState('');
   const [loading, setLoading] = useState(false);
+  const [dbTest, setDbTest] = useState<{ ok: boolean; message: string } | null>(null);
+  const [dbTestLoading, setDbTestLoading] = useState(false);
 
   const isManager = user?.role === UserRole.MANAGER || user?.role === UserRole.OWNER;
 
@@ -73,13 +75,72 @@ export const Settings: React.FC = () => {
     }
   };
 
+  const handleTestDatabase = async () => {
+    setDbTest(null);
+    setDbTestLoading(true);
+    try {
+      const [users, tasks, holidaysList] = await Promise.all([
+        api.getUsers(),
+        api.getTasks(),
+        api.getHolidays(),
+      ]);
+      setDbTest({
+        ok: true,
+        message: `Connected. Users: ${users.length}, Tasks: ${tasks.length}, Holidays: ${holidaysList.length}`,
+      });
+    } catch (err: any) {
+      setDbTest({
+        ok: false,
+        message: err?.message || String(err),
+      });
+    } finally {
+      setDbTestLoading(false);
+    }
+  };
+
   return (
     <div>
-      <h1 className="text-2xl font-bold text-slate-800 mb-6">Settings</h1>
+      <h1 className="page-title">Settings</h1>
 
-      <section className="mb-12">
+      <section className="mb-10">
+        <div className="card p-5 mb-6">
+          <h2 className="text-lg font-semibold text-slate-800 mb-2 flex items-center gap-2">
+            <Database size={20} className="text-slate-500" />
+            Test database
+          </h2>
+        <p className="text-sm text-slate-600 mb-4">
+          Verify Firestore connection and counts for users, tasks, and holidays.
+        </p>
+        <div className="flex items-center gap-4 flex-wrap">
+          <Button
+            variant="secondary"
+            onClick={handleTestDatabase}
+            isLoading={dbTestLoading}
+            disabled={dbTestLoading}
+          >
+            Test connection
+          </Button>
+          {dbTest && (
+            <span
+              className={`flex items-center gap-2 text-sm font-medium ${
+                dbTest.ok ? 'text-green-700' : 'text-red-700'
+              }`}
+            >
+              {dbTest.ok ? (
+                <CheckCircle size={18} />
+              ) : (
+                <XCircle size={18} />
+              )}
+              {dbTest.message}
+            </span>
+          )}
+        </div>
+        </div>
+      </section>
+
+      <section className="mb-10">
         <h2 className="text-lg font-semibold text-slate-800 mb-4 flex items-center gap-2">
-          <Calendar size={20} />
+          <Calendar size={20} className="text-slate-500" />
           List of Holidays
         </h2>
         {isManager && (
@@ -105,15 +166,13 @@ export const Settings: React.FC = () => {
           </div>
         </form>
         )}
-        <div className="overflow-x-auto">
-          <table className="w-full border-collapse bg-white rounded-xl border border-slate-200 shadow-sm">
+        <div className="table-container">
+          <table>
             <thead>
-              <tr className="bg-slate-50 border-b border-slate-200">
-                <th className="text-left py-4 px-4 font-semibold text-slate-800">Date</th>
-                <th className="text-left py-4 px-4 font-semibold text-slate-800">Name</th>
-                {isManager && (
-                  <th className="text-right py-4 px-4 font-semibold text-slate-800">Actions</th>
-                )}
+              <tr>
+                <th>Date</th>
+                <th>Name</th>
+                {isManager && <th className="text-right">Actions</th>}
               </tr>
             </thead>
             <tbody>
@@ -125,11 +184,11 @@ export const Settings: React.FC = () => {
                 </tr>
               ) : (
                 holidays.map((h) => (
-                  <tr key={h.id} className="border-b border-slate-100 hover:bg-slate-50">
-                    <td className="py-3 px-4 text-slate-700">{h.date}</td>
-                    <td className="py-3 px-4 font-medium text-slate-800">{h.name}</td>
+                  <tr key={h.id}>
+                    <td>{h.date}</td>
+                    <td className="font-medium text-slate-800">{h.name}</td>
                     {isManager && (
-                      <td className="py-3 px-4 text-right">
+                      <td className="text-right">
                         <Button size="sm" variant="danger" onClick={() => handleDeleteHoliday(h.id)}>
                           Delete
                         </Button>
@@ -177,14 +236,14 @@ export const Settings: React.FC = () => {
         </form>
 
         <h3 className="font-semibold text-slate-800 mb-3">Absence Records</h3>
-        <div className="overflow-x-auto">
-          <table className="w-full border-collapse bg-white rounded-xl border border-slate-200 shadow-sm">
+        <div className="table-container">
+          <table>
             <thead>
-              <tr className="bg-slate-50 border-b border-slate-200">
-                <th className="text-left py-4 px-4 font-semibold text-slate-800">Member</th>
-                <th className="text-left py-4 px-4 font-semibold text-slate-800">From Date</th>
-                <th className="text-left py-4 px-4 font-semibold text-slate-800">To Date</th>
-                <th className="text-left py-4 px-4 font-semibold text-slate-800">Reason</th>
+              <tr>
+                <th>Member</th>
+                <th>From Date</th>
+                <th>To Date</th>
+                <th>Reason</th>
               </tr>
             </thead>
             <tbody>

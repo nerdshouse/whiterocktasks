@@ -18,6 +18,13 @@ import {
   CheckCircle,
 } from 'lucide-react';
 
+const roleLabels: Record<UserRole, string> = {
+  [UserRole.OWNER]: 'Owner',
+  [UserRole.MANAGER]: 'Manager',
+  [UserRole.DOER]: 'Doer',
+  [UserRole.AUDITOR]: 'Auditor',
+};
+
 const NavItem = ({
   to,
   icon: Icon,
@@ -34,12 +41,14 @@ const NavItem = ({
   <Link
     to={to}
     onClick={onClick}
-    className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
-      active ? 'bg-teal-600 text-white' : 'text-slate-600 hover:bg-slate-100'
+    className={`flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 ${
+      active
+        ? 'bg-teal-600 text-white shadow-sm shadow-teal-600/20'
+        : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
     }`}
   >
-    <Icon size={20} />
-    <span className="font-medium">{label}</span>
+    <Icon size={20} className={active ? 'text-white' : 'text-slate-500'} />
+    <span>{label}</span>
   </Link>
 );
 
@@ -82,16 +91,25 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
       ];
 
   return (
-    <div className="min-h-screen bg-slate-50 flex flex-col md:flex-row">
-      <aside className="hidden md:flex flex-col w-64 bg-white border-r border-slate-200 h-screen sticky top-0">
-        <div className="p-6 border-b border-slate-200">
-          <h1 className="text-xl font-bold font-serif text-slate-800">
-            WhiteRock<span className="text-[10px] align-top ml-0.5 font-sans">TM</span>
+    <div className="min-h-screen bg-slate-100/80 flex flex-col md:flex-row">
+      {/* Desktop sidebar */}
+      <aside className="hidden md:flex flex-col w-64 bg-white border-r border-slate-200/80 shadow-sm min-h-screen sticky top-0">
+        <div className="p-5 border-b border-slate-100">
+          <h1 className="text-xl font-bold text-slate-800 tracking-tight">
+            WhiteRock<span className="text-[10px] align-top ml-0.5 font-normal text-slate-400">TM</span>
           </h1>
-          <p className="text-xs text-slate-500 mt-2">Tasks</p>
-          <p className="text-xs text-slate-500 mt-1 truncate">{user.name}</p>
+          <p className="text-xs text-slate-500 mt-1 font-medium">Task Management</p>
+          <div className="mt-3 flex items-center gap-2">
+            <div className="w-8 h-8 rounded-lg bg-teal-100 flex items-center justify-center text-teal-700 font-semibold text-sm">
+              {user.name.charAt(0)}
+            </div>
+            <div>
+              <p className="text-sm font-medium text-slate-800 truncate max-w-[140px]">{user.name}</p>
+              <p className="text-xs text-slate-500">{roleLabels[user.role]}</p>
+            </div>
+          </div>
         </div>
-        <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
+        <nav className="flex-1 p-3 space-y-0.5 overflow-y-auto">
           {navItems.map((item) => (
             <NavItem
               key={item.to}
@@ -102,89 +120,100 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
             />
           ))}
           {!isAuditor && completedTasks.length > 0 && (
-            <div className="mt-6 pt-4 border-t border-slate-200">
-              <p className="px-4 py-2 text-xs font-semibold text-slate-500 uppercase">Completed Tasks</p>
-              <div className="space-y-1 max-h-48 overflow-y-auto">
+            <div className="mt-5 pt-4 border-t border-slate-100">
+              <p className="px-3.5 py-2 text-xs font-semibold text-slate-400 uppercase tracking-wider">
+                Recent
+              </p>
+              <div className="space-y-0.5 max-h-44 overflow-y-auto">
                 {completedTasks.map((t) => (
                   <Link
                     key={t.id}
                     to={`/tasks?highlight=${t.id}`}
-                    onClick={() => setMobileOpen(false)}
-                    className="block px-4 py-2 text-sm text-slate-600 hover:bg-slate-100 rounded-lg truncate"
+                    className="flex items-center gap-2 px-3.5 py-2 text-sm text-slate-600 hover:bg-slate-50 rounded-lg truncate"
                   >
-                    <CheckCircle size={14} className="inline mr-2 text-green-500" />
-                    {t.title}
+                    <CheckCircle size={14} className="shrink-0 text-emerald-500" />
+                    <span className="truncate">{t.title}</span>
                   </Link>
                 ))}
               </div>
             </div>
           )}
         </nav>
-        <div className="p-4 border-t border-slate-200">
+        <div className="p-3 border-t border-slate-100">
           <button
             onClick={logout}
-            className="flex items-center gap-3 px-4 py-3 w-full text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+            className="flex items-center gap-3 px-3.5 py-2.5 w-full text-slate-600 hover:text-red-600 hover:bg-red-50 rounded-xl transition-colors text-sm font-medium"
           >
             <LogOut size={20} />
-            <span className="font-medium">Logout</span>
+            <span>Log out</span>
           </button>
         </div>
       </aside>
 
-      <div className="md:hidden bg-white border-b p-4 flex justify-between items-center sticky top-0 z-20">
-        <h1 className="text-lg font-bold font-serif">WhiteRock Tasks</h1>
-        <button onClick={() => setMobileOpen(!mobileOpen)} className="p-2">
+      {/* Mobile header */}
+      <div className="md:hidden bg-white border-b border-slate-200 px-4 py-3 flex justify-between items-center sticky top-0 z-20 shadow-sm">
+        <h1 className="text-lg font-bold text-slate-800">WhiteRock Tasks</h1>
+        <button
+          onClick={() => setMobileOpen(!mobileOpen)}
+          className="p-2 rounded-lg hover:bg-slate-100 text-slate-600"
+          aria-label="Toggle menu"
+        >
           {mobileOpen ? <X size={24} /> : <Menu size={24} />}
         </button>
       </div>
 
+      {/* Mobile drawer */}
       {mobileOpen && (
-        <div className="fixed inset-0 bg-white z-50 md:hidden flex flex-col">
-          <div className="flex justify-between items-center p-4 border-b">
-            <h2 className="font-bold">Menu</h2>
-            <button onClick={() => setMobileOpen(false)}>
-              <X size={24} />
-            </button>
+        <div className="fixed inset-0 z-50 md:hidden">
+          <div className="absolute inset-0 bg-slate-900/20 backdrop-blur-sm" onClick={() => setMobileOpen(false)} />
+          <div className="absolute left-0 top-0 bottom-0 w-72 bg-white shadow-xl flex flex-col">
+            <div className="flex justify-between items-center p-4 border-b border-slate-100">
+              <span className="font-semibold text-slate-800">Menu</span>
+              <button onClick={() => setMobileOpen(false)} className="p-2 rounded-lg hover:bg-slate-100">
+                <X size={20} />
+              </button>
+            </div>
+            <nav className="flex-1 p-3 space-y-0.5 overflow-y-auto">
+              {navItems.map((item) => (
+                <NavItem
+                  key={item.to}
+                  to={item.to}
+                  icon={item.icon}
+                  label={item.label}
+                  active={location.pathname === item.to}
+                  onClick={() => setMobileOpen(false)}
+                />
+              ))}
+              {!isAuditor && completedTasks.length > 0 && (
+                <div className="mt-4 pt-4 border-t border-slate-100">
+                  <p className="px-3.5 py-2 text-xs font-semibold text-slate-400 uppercase">Recent</p>
+                  {completedTasks.map((t) => (
+                    <Link
+                      key={t.id}
+                      to={`/tasks?highlight=${t.id}`}
+                      onClick={() => setMobileOpen(false)}
+                      className="flex items-center gap-2 px-3.5 py-2 text-sm text-slate-600 hover:bg-slate-50 rounded-lg"
+                    >
+                      <CheckCircle size={14} className="text-emerald-500" />
+                      {t.title}
+                    </Link>
+                  ))}
+                </div>
+              )}
+              <button
+                onClick={() => { logout(); setMobileOpen(false); }}
+                className="flex items-center gap-3 px-3.5 py-2.5 w-full text-red-600 hover:bg-red-50 rounded-xl mt-2 text-sm font-medium"
+              >
+                <LogOut size={20} />
+                <span>Log out</span>
+              </button>
+            </nav>
           </div>
-          <nav className="flex-1 p-4 space-y-2">
-            {navItems.map((item) => (
-              <NavItem
-                key={item.to}
-                to={item.to}
-                icon={item.icon}
-                label={item.label}
-                active={location.pathname === item.to}
-                onClick={() => setMobileOpen(false)}
-              />
-            ))}
-            {!isAuditor && completedTasks.length > 0 && (
-              <div className="mt-4 pt-4 border-t">
-                <p className="px-4 py-2 text-xs font-semibold text-slate-500">Completed Tasks</p>
-                {completedTasks.map((t) => (
-                  <Link
-                    key={t.id}
-                    to={`/tasks?highlight=${t.id}`}
-                    onClick={() => setMobileOpen(false)}
-                    className="block px-4 py-2 text-sm text-slate-600"
-                  >
-                    <CheckCircle size={14} className="inline mr-2 text-green-500" />
-                    {t.title}
-                  </Link>
-                ))}
-              </div>
-            )}
-            <button
-              onClick={logout}
-              className="flex items-center gap-3 px-4 py-3 w-full text-red-600"
-            >
-              <LogOut size={20} />
-              <span>Logout</span>
-            </button>
-          </nav>
         </div>
       )}
 
-      <main className="flex-1 overflow-auto pb-8">
+      {/* Main content */}
+      <main className="flex-1 overflow-auto min-h-screen">
         <div className="max-w-6xl mx-auto p-4 md:p-8">{children}</div>
       </main>
     </div>
