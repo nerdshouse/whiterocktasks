@@ -100,8 +100,6 @@ export const Settings: React.FC = () => {
 
   return (
     <div>
-      <h1 className="page-title">Settings</h1>
-
       <section className="mb-10">
         <div className="card p-5 mb-6">
           <h2 className="text-lg font-semibold text-slate-800 mb-2 flex items-center gap-2">

@@ -143,10 +143,7 @@ export const TaskTable: React.FC = () => {
   if (isAuditor) {
     return (
       <div>
-        <h1 className="page-title">Auditor View</h1>
-        <p className="page-subtitle">
-          Tasks pending audit. Mark as audited, bogus, or unclear.
-        </p>
+        <p className="text-slate-500 text-sm mb-4">Tasks pending audit. Mark as audited, bogus, or unclear.</p>
         <div className="table-container">
           <table>
             <thead>
@@ -253,7 +250,6 @@ export const TaskTable: React.FC = () => {
   return (
     <div>
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
-        <h1 className="page-title mb-0">Task Table</h1>
         {isDoer && (
           <div className="flex items-center gap-2">
             <label className="text-sm text-slate-600">Filter by Start Date:</label>

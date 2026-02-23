@@ -32,18 +32,16 @@ export const Login: React.FC = () => {
   return (
     <div className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-slate-50 via-white to-teal-50/30">
       <div className="w-full max-w-md">
-        <div className="card p-8 shadow-lg shadow-slate-200/50">
-          <div className="text-center mb-8">
-            <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-teal-600 text-white mb-4 shadow-lg shadow-teal-600/25">
-              <span className="text-2xl font-bold">W</span>
-            </div>
-            <h1 className="text-2xl font-bold text-slate-800 tracking-tight">
-              WhiteRock<span className="text-[10px] align-top ml-0.5 font-normal text-slate-400">TM</span>
-            </h1>
-            <p className="text-slate-500 mt-1.5 text-sm font-medium">Task Management</p>
+        <div className="card shadow-lg shadow-slate-200/50 pt-4 px-8 pb-8">
+          <div className="flex justify-center overflow-hidden">
+            <img
+              src="/whiterock-logo.png"
+              alt="WhiteRock"
+              className="w-[161px] h-[161px] object-contain object-center block"
+            />
           </div>
           {error && (
-            <div className="bg-red-50 border border-red-100 text-red-700 p-4 rounded-xl mb-6 flex items-start gap-3">
+            <div className="bg-red-50 border border-red-100 text-red-700 p-4 rounded-xl mb-6 flex items-start gap-3 mt-4">
               <AlertTriangle size={20} className="shrink-0 mt-0.5 text-red-500" />
               <div className="text-sm">
                 <p className="font-medium">{error}</p>
@@ -55,13 +53,7 @@ export const Login: React.FC = () => {
               </div>
             </div>
           )}
-          <a
-            href="#/seed"
-            className="block text-sm text-teal-600 hover:text-teal-700 font-medium mb-5"
-          >
-            First time? Seed demo users (all use password: password123)
-          </a>
-          <form onSubmit={handleLogin} className="space-y-5">
+          <form onSubmit={handleLogin} className="space-y-5 mt-4">
             <Input
               label="Email"
               type="email"
@@ -83,7 +75,6 @@ export const Login: React.FC = () => {
             </Button>
           </form>
         </div>
-        <p className="text-center text-xs text-slate-400 mt-6">WhiteRock™ Task Management</p>
       </div>
     </div>
   );

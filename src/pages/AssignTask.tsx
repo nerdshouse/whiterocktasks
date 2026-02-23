@@ -122,7 +122,6 @@ export const AssignTask: React.FC = () => {
 
   return (
     <div>
-      <h1 className="page-title">Assign Task</h1>
       <form onSubmit={handleSubmit} className="space-y-6 max-w-xl">
         <Input
           label="Task Title"

@@ -4,7 +4,7 @@ import { api } from '../services/api';
 import { Task } from '../types';
 import { UserRole } from '../types';
 import { Link } from 'react-router-dom';
-import { AlertTriangle } from 'lucide-react';
+import { AlertTriangle, User } from 'lucide-react';
 
 export const RedZone: React.FC = () => {
   const { user } = useAuth();
@@ -44,14 +44,8 @@ export const RedZone: React.FC = () => {
   if (filtered.length === 0 && !loading) {
     return (
       <div>
-        <h1 className="page-title flex items-center gap-2">
-          <AlertTriangle className="text-red-500" size={24} />
-          Red Zone (Overdue Tasks)
-        </h1>
-        <p className="page-subtitle">
-          Tasks that are past their due date and not yet completed.
-        </p>
-        <div className="bg-green-50 border border-green-200 rounded-xl p-6 text-center text-green-800">
+        <p className="text-slate-500 text-sm mb-4">Tasks that are past their due date and not yet completed.</p>
+        <div className="card p-6 text-center text-green-800 bg-green-50 border-green-200">
           No overdue tasks. Great job!
         </div>
       </div>
@@ -60,44 +54,41 @@ export const RedZone: React.FC = () => {
 
   return (
     <div>
-      <h1 className="page-title flex items-center gap-2">
-          <AlertTriangle className="text-red-500" size={24} />
-          Red Zone (Overdue Tasks)
-        </h1>
-        <p className="page-subtitle">
-          Tasks that are past their due date and not yet completed.
-        </p>
+      <p className="text-slate-500 text-sm mb-4">Tasks that are past their due date and not yet completed.</p>
       {filtered.length === 0 ? (
         <div className="bg-green-50 border border-green-200 rounded-xl p-6 text-center text-green-800">
           No overdue tasks. Great job!
         </div>
       ) : (
-        <div className="space-y-3">
-          {filtered.map((t) => {
-            const daysOverdue = Math.ceil(
-              (new Date().getTime() - new Date(t.due_date).getTime()) / (1000 * 60 * 60 * 24)
-            );
-            return (
-              <Link
-                key={t.id}
-                to={`/tasks?highlight=${t.id}`}
-                className="block p-4 bg-white rounded-xl border-l-4 border-red-500 border border-slate-200 hover:bg-slate-50 transition-colors"
-              >
-                <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-2">
-                  <div>
-                    <p className="font-medium text-slate-800">{t.title}</p>
-                    <p className="text-sm text-slate-500">
-                      Assigned to {t.assigned_to_name} • Due {t.due_date} • {daysOverdue} day(s)
-                      overdue
+        <div className="card overflow-hidden">
+          <h2 className="card-header text-lg font-semibold text-slate-800">Overdue Follow-up</h2>
+          <div className="divide-y divide-slate-100">
+            {filtered.map((t) => {
+              const daysOverdue = Math.ceil(
+                (new Date().getTime() - new Date(t.due_date).getTime()) / (1000 * 60 * 60 * 24)
+              );
+              return (
+                <Link
+                  key={t.id}
+                  to={`/tasks?highlight=${t.id}`}
+                  className="flex items-center gap-4 p-4 hover:bg-slate-50/50 transition-colors"
+                >
+                  <div className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center text-slate-500 shrink-0">
+                    <User size={20} />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="font-medium text-slate-800">{t.assigned_to_name}</p>
+                    <p className="text-sm text-slate-500 truncate">
+                      {t.title} • Due {t.due_date} • {daysOverdue} day(s) overdue
                     </p>
                   </div>
-                  <span className="px-2 py-1 rounded text-xs font-medium bg-red-100 text-red-800">
+                  <span className="px-2 py-1 rounded-lg text-xs font-medium bg-red-100 text-red-800 shrink-0">
                     {t.priority}
                   </span>
-                </div>
-              </Link>
-            );
-          })}
+                </Link>
+              );
+            })}
+          </div>
         </div>
       )}
     </div>

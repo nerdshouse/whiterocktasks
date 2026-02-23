@@ -34,13 +34,7 @@ export const BogusAttachment: React.FC = () => {
 
   return (
     <div>
-      <h1 className="page-title flex items-center gap-2">
-        <Paperclip size={24} className="text-slate-500" />
-        Bogus Attachment
-      </h1>
-      <p className="page-subtitle">
-        Review completed tasks with required attachments. Mark as audited, bogus, or unclear.
-      </p>
+      <p className="text-slate-500 text-sm mb-4">Review completed tasks with required attachments. Mark as audited, bogus, or unclear.</p>
       <div className="table-container">
         <table>
           <thead>

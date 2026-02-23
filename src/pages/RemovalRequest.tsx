@@ -77,7 +77,6 @@ export const RemovalRequest: React.FC = () => {
 
   return (
     <div>
-      <h1 className="page-title">Removal Request</h1>
       <p className="text-slate-600 mb-6">
         Request removal of a task assigned to you. The owner will review and approve or reject.
       </p>
