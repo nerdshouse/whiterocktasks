@@ -4,7 +4,7 @@ import { api } from '../services/api';
 import { Holiday, Absence, UserRole } from '../types';
 import { Input } from '../components/ui/Input';
 import { Button } from '../components/ui/Button';
-import { Calendar, ChevronDown, ChevronUp } from 'lucide-react';
+import { Calendar, ChevronDown, ChevronUp, Plus } from 'lucide-react';
 
 const LIST_MAX_HEIGHT = 'min(20rem, 50vh)';
 
@@ -20,6 +20,8 @@ export const Settings: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [holidaysOpen, setHolidaysOpen] = useState(true);
   const [absencesOpen, setAbsencesOpen] = useState(true);
+  const [showAddHolidayModal, setShowAddHolidayModal] = useState(false);
+  const [showMarkAbsentModal, setShowMarkAbsentModal] = useState(false);
 
   const isManager = user?.role === UserRole.MANAGER || user?.role === UserRole.OWNER;
 
@@ -37,6 +39,7 @@ export const Settings: React.FC = () => {
       setHolidays(await api.getHolidays());
       setHolidayDate('');
       setHolidayName('');
+      setShowAddHolidayModal(false);
     } catch (err) {
       console.error(err);
     } finally {
@@ -70,6 +73,7 @@ export const Settings: React.FC = () => {
       setAbsenceFrom('');
       setAbsenceTo('');
       setAbsenceReason('');
+      setShowMarkAbsentModal(false);
     } catch (err) {
       console.error(err);
     } finally {
@@ -108,27 +112,12 @@ export const Settings: React.FC = () => {
               {holidaysOpen && (
                 <>
                   {isManager && (
-                    <form onSubmit={handleAddHoliday} className="flex flex-wrap gap-4 mb-4 p-4 bg-slate-50/50 rounded-lg">
-                      <Input
-                        label="Date"
-                        type="date"
-                        value={holidayDate}
-                        onChange={(e) => setHolidayDate(e.target.value)}
-                        required
-                      />
-                      <Input
-                        label="Name"
-                        value={holidayName}
-                        onChange={(e) => setHolidayName(e.target.value)}
-                        required
-                        placeholder="e.g. Diwali"
-                      />
-                      <div className="flex items-end">
-                        <Button type="submit" isLoading={loading}>
-                          Add Holiday
-                        </Button>
-                      </div>
-                    </form>
+                    <div className="mb-4">
+                      <Button type="button" onClick={() => setShowAddHolidayModal(true)} size="sm">
+                        <Plus size={16} className="mr-1.5" />
+                        Add Holiday
+                      </Button>
+                    </div>
                   )}
                   <div
                     className="overflow-y-auto border border-slate-200 rounded-lg bg-white"
@@ -186,33 +175,12 @@ export const Settings: React.FC = () => {
               </button>
               {absencesOpen && (
                 <>
-                  <form onSubmit={handleMarkAbsent} className="flex flex-wrap gap-4 p-4 bg-slate-50/50 rounded-lg mb-4">
-                    <Input
-                      label="From Date"
-                      type="date"
-                      value={absenceFrom}
-                      onChange={(e) => setAbsenceFrom(e.target.value)}
-                      required
-                    />
-                    <Input
-                      label="To Date"
-                      type="date"
-                      value={absenceTo}
-                      onChange={(e) => setAbsenceTo(e.target.value)}
-                      required
-                    />
-                    <Input
-                      label="Reason (optional)"
-                      value={absenceReason}
-                      onChange={(e) => setAbsenceReason(e.target.value)}
-                      placeholder="Leave, sick, etc."
-                    />
-                    <div className="flex items-end">
-                      <Button type="submit" isLoading={loading}>
-                        Mark myself absent
-                      </Button>
-                    </div>
-                  </form>
+                  <div className="mb-4">
+                    <Button type="button" onClick={() => setShowMarkAbsentModal(true)} size="sm">
+                      <Plus size={16} className="mr-1.5" />
+                      Mark myself absent
+                    </Button>
+                  </div>
                   <div
                     className="overflow-y-auto border border-slate-200 rounded-lg bg-white"
                     style={{ maxHeight: LIST_MAX_HEIGHT }}
@@ -252,6 +220,77 @@ export const Settings: React.FC = () => {
           </div>
         </div>
       </section>
+
+      {showAddHolidayModal && isManager && (
+        <div className="fixed inset-0 bg-slate-900/40 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl border border-slate-200 shadow-xl max-w-md w-full p-6">
+            <h3 className="text-lg font-semibold text-slate-800 mb-4">Add Holiday</h3>
+            <form onSubmit={handleAddHoliday} className="space-y-4">
+              <Input
+                label="Date"
+                type="date"
+                value={holidayDate}
+                onChange={(e) => setHolidayDate(e.target.value)}
+                required
+              />
+              <Input
+                label="Name"
+                value={holidayName}
+                onChange={(e) => setHolidayName(e.target.value)}
+                required
+                placeholder="e.g. Diwali"
+              />
+              <div className="flex gap-2 pt-2">
+                <Button type="submit" isLoading={loading}>
+                  Add Holiday
+                </Button>
+                <Button type="button" variant="secondary" onClick={() => setShowAddHolidayModal(false)}>
+                  Cancel
+                </Button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {showMarkAbsentModal && (
+        <div className="fixed inset-0 bg-slate-900/40 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl border border-slate-200 shadow-xl max-w-md w-full p-6">
+            <h3 className="text-lg font-semibold text-slate-800 mb-4">Mark myself absent</h3>
+            <p className="text-sm text-slate-600 mb-4">Tasks during this period won&apos;t count in KPI.</p>
+            <form onSubmit={handleMarkAbsent} className="space-y-4">
+              <Input
+                label="From Date"
+                type="date"
+                value={absenceFrom}
+                onChange={(e) => setAbsenceFrom(e.target.value)}
+                required
+              />
+              <Input
+                label="To Date"
+                type="date"
+                value={absenceTo}
+                onChange={(e) => setAbsenceTo(e.target.value)}
+                required
+              />
+              <Input
+                label="Reason (optional)"
+                value={absenceReason}
+                onChange={(e) => setAbsenceReason(e.target.value)}
+                placeholder="Leave, sick, etc."
+              />
+              <div className="flex gap-2 pt-2">
+                <Button type="submit" isLoading={loading}>
+                  Submit
+                </Button>
+                <Button type="button" variant="secondary" onClick={() => setShowMarkAbsentModal(false)}>
+                  Cancel
+                </Button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

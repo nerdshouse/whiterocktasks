@@ -10,7 +10,7 @@ import { isHoliday, compressImageForUpload, getPendingDays } from '../lib/utils'
 import { Paperclip, Check, X, HelpCircle, ExternalLink, FileText } from 'lucide-react';
 import type { QueryDocumentSnapshot } from 'firebase/firestore';
 
-const PAGE_SIZE = 20;
+const PAGE_SIZE = 7;
 
 export const TaskTable: React.FC = () => {
   const { user } = useAuth();
@@ -202,23 +202,13 @@ export const TaskTable: React.FC = () => {
                     {t.description || '-'}
                   </td>
                   <td>
-                    {t.attachment_url ? (
-                      <a
-                        href={t.attachment_url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-teal-600 hover:underline text-sm inline-flex items-center gap-1"
-                      >
-                        <ExternalLink size={14} />
-                        View
-                      </a>
-                    ) : t.attachment_text ? (
+                    {(t.attachment_url || t.attachment_text) ? (
                       <button
                         type="button"
-                        onClick={() => setViewAttachment({ text: t.attachment_text })}
-                        className="text-teal-600 hover:underline text-sm inline-flex items-center gap-1"
+                        onClick={() => setViewAttachment({ url: t.attachment_url, text: t.attachment_text })}
+                        className="text-teal-600 hover:underline text-sm inline-flex items-center gap-1 font-medium"
                       >
-                        <FileText size={14} />
+                        {t.attachment_url ? <ExternalLink size={14} /> : <FileText size={14} />}
                         View
                       </button>
                     ) : t.attachment_required ? (
@@ -384,25 +374,17 @@ export const TaskTable: React.FC = () => {
                     </span>
                   </td>
                   <td>
-                    {t.attachment_url ? (
-                      <a
-                        href={t.attachment_url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-teal-600 hover:underline text-sm inline-flex items-center gap-1"
-                      >
-                        <ExternalLink size={14} />
-                        View
-                      </a>
-                    ) : t.attachment_text ? (
+                    {(t.attachment_url || t.attachment_text) ? (
                       <button
                         type="button"
-                        onClick={() => setViewAttachment({ text: t.attachment_text })}
-                        className="text-teal-600 hover:underline text-sm inline-flex items-center gap-1"
+                        onClick={() => setViewAttachment({ url: t.attachment_url, text: t.attachment_text })}
+                        className="text-teal-600 hover:underline text-sm inline-flex items-center gap-1 font-medium"
                       >
-                        <FileText size={14} />
+                        {t.attachment_url ? <ExternalLink size={14} /> : <FileText size={14} />}
                         View
                       </button>
+                    ) : t.attachment_required ? (
+                      <span className="text-amber-600 text-sm">Required</span>
                     ) : (
                       '-'
                     )}
@@ -527,11 +509,25 @@ export const TaskTable: React.FC = () => {
         <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center z-50 p-4" onClick={() => setViewAttachment(null)}>
           <div className="card p-6 max-w-lg w-full max-h-[80vh] overflow-hidden flex flex-col shadow-xl" onClick={(e) => e.stopPropagation()}>
             <h3 className="text-lg font-semibold mb-3">Attachment</h3>
-            {viewAttachment.text != null ? (
-              <pre className="flex-1 overflow-auto text-sm text-slate-700 whitespace-pre-wrap border border-slate-200 rounded-lg p-4 bg-slate-50">
+            {viewAttachment.url && (
+              <div className="mb-4">
+                <a
+                  href={viewAttachment.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-2 text-teal-600 hover:underline font-medium"
+                >
+                  <ExternalLink size={18} />
+                  Open media / link
+                </a>
+              </div>
+            )}
+            {viewAttachment.text != null && viewAttachment.text !== '' && (
+              <pre className="flex-1 overflow-auto text-sm text-slate-700 whitespace-pre-wrap border border-slate-200 rounded-lg p-4 bg-slate-50 min-h-[100px]">
                 {viewAttachment.text}
               </pre>
-            ) : null}
+            )}
+            {viewAttachment.url && !viewAttachment.text && <p className="text-sm text-slate-500">Media or link attached. Use the link above to view.</p>}
             <div className="mt-4 flex justify-end">
               <Button variant="secondary" onClick={() => setViewAttachment(null)}>Close</Button>
             </div>

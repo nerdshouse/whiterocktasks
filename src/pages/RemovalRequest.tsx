@@ -18,6 +18,7 @@ export const RemovalRequest: React.FC = () => {
   const [taskId, setTaskId] = useState('');
   const [reason, setReason] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [showRequestModal, setShowRequestModal] = useState(false);
   const isOwner = user?.role === UserRole.OWNER;
 
   const loadRequests = useCallback(async (startAfterDoc?: QueryDocumentSnapshot | null) => {
@@ -60,6 +61,7 @@ export const RemovalRequest: React.FC = () => {
       setReason('');
       await loadRequests(undefined);
       setMyTasks(await api.getMyIncompleteTasks(user.id));
+      setShowRequestModal(false);
     } catch (err) {
       console.error(err);
     } finally {
@@ -95,41 +97,54 @@ export const RemovalRequest: React.FC = () => {
         Request removal of a task assigned to you. The owner will review and approve or reject.
       </p>
 
-      <form onSubmit={handleSubmit} className="mb-8 p-4 bg-white rounded-xl border border-slate-200 max-w-lg">
-        <h2 className="font-semibold mb-4">Request Task Removal</h2>
-        <div className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">Select Task</label>
-            <select
-              value={taskId}
-              onChange={(e) => setTaskId(e.target.value)}
-              required
-              className="w-full h-10 rounded-lg border border-slate-300 px-3 text-sm"
-            >
-              <option value="">Choose a task to request removal</option>
-              {myTasks.map((t) => (
-                <option key={t.id} value={t.id}>
-                  {t.title} (Due: {t.due_date})
-                </option>
-              ))}
-            </select>
+      <Button onClick={() => setShowRequestModal(true)} className="mb-6">
+        Request Task Removal
+      </Button>
+
+      {showRequestModal && (
+        <div className="fixed inset-0 bg-slate-900/40 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl border border-slate-200 shadow-xl max-w-lg w-full p-6">
+            <h2 className="font-semibold text-slate-800 mb-4">Request Task Removal</h2>
+            <form onSubmit={handleSubmit} className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Select Task</label>
+                <select
+                  value={taskId}
+                  onChange={(e) => setTaskId(e.target.value)}
+                  required
+                  className="w-full h-10 rounded-lg border border-slate-300 px-3 text-sm"
+                >
+                  <option value="">Choose a task to request removal</option>
+                  {myTasks.map((t) => (
+                    <option key={t.id} value={t.id}>
+                      {t.title} (Due: {t.due_date})
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Reason</label>
+                <textarea
+                  value={reason}
+                  onChange={(e) => setReason(e.target.value)}
+                  required
+                  rows={3}
+                  className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+                  placeholder="Why should this task be removed?"
+                />
+              </div>
+              <div className="flex gap-2 pt-2">
+                <Button type="submit" isLoading={submitting}>
+                  Submit Request
+                </Button>
+                <Button type="button" variant="secondary" onClick={() => setShowRequestModal(false)}>
+                  Cancel
+                </Button>
+              </div>
+            </form>
           </div>
-          <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">Reason</label>
-            <textarea
-              value={reason}
-              onChange={(e) => setReason(e.target.value)}
-              required
-              rows={3}
-              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
-              placeholder="Why should this task be removed?"
-            />
-          </div>
-          <Button type="submit" isLoading={submitting}>
-            Submit Request
-          </Button>
         </div>
-      </form>
+      )}
 
       <div>
         <h2 className="font-semibold text-slate-800 mb-4">
