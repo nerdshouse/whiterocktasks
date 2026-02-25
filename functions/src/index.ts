@@ -150,3 +150,77 @@ export const sendDailyDueDateReminders = functions
 
     return null;
   });
+
+/**
+ * Scheduled function: runs daily at 6:00 AM IST.
+ * Creates today's task instances for recurring tasks with recurring === 'daily'
+ * and recurring_days containing today's weekday (0=Mon .. 6=Sun).
+ * Child tasks get parent_task_id set and due_date = today.
+ */
+export const createDailyRecurringTaskInstances = functions
+  .runWith({ timeoutSeconds: 120, memory: '256MB' })
+  .pubsub.schedule('30 0 * * *') // 00:30 UTC = 6:00 AM IST
+  .timeZone('Asia/Kolkata')
+  .onRun(async () => {
+    const db = admin.firestore();
+    const now = new Date();
+    const today = now
+      .toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' })
+      .replace(/\//g, '-'); // YYYY-MM-DD
+    // Weekday for date "today": 0=Mon .. 6=Sun (app format)
+    const todayAtNoonUTC = new Date(today + 'T12:00:00Z');
+    const jsDay = todayAtNoonUTC.getUTCDay(); // 0=Sun .. 6=Sat
+    const appWeekday = jsDay === 0 ? 6 : jsDay - 1;
+
+    const recurringSnap = await db
+      .collection(COLLECTIONS.TASKS)
+      .where('recurring', '==', 'daily')
+      .get();
+
+    const toCreate: Record<string, unknown>[] = [];
+    for (const doc of recurringSnap.docs) {
+      const d = doc.data();
+      const days: number[] = d.recurring_days || [];
+      if (!days.includes(appWeekday)) continue;
+      const parentId = doc.id;
+      const existing = await db
+        .collection(COLLECTIONS.TASKS)
+        .where('parent_task_id', '==', parentId)
+        .where('due_date', '==', today)
+        .limit(1)
+        .get();
+      if (!existing.empty) continue;
+
+      toCreate.push({
+        title: d.title || '',
+        description: d.description || '',
+        start_date: today,
+        due_date: today,
+        priority: d.priority || 'medium',
+        status: 'pending',
+        recurring: 'none',
+        attachment_required: d.attachment_required || false,
+        attachment_type: d.attachment_type,
+        attachment_description: d.attachment_description,
+        assigned_to_id: d.assigned_to_id || '',
+        assigned_to_name: d.assigned_to_name || '',
+        assigned_to_city: d.assigned_to_city,
+        assigned_by_id: d.assigned_by_id || '',
+        assigned_by_name: d.assigned_by_name || '',
+        parent_task_id: parentId,
+        created_at: admin.firestore.FieldValue.serverTimestamp(),
+        updated_at: admin.firestore.FieldValue.serverTimestamp(),
+      });
+    }
+
+    const batch = db.batch();
+    for (const data of toCreate) {
+      const ref = db.collection(COLLECTIONS.TASKS).doc();
+      batch.set(ref, data);
+    }
+    if (toCreate.length > 0) {
+      await batch.commit();
+      functions.logger.info(`Created ${toCreate.length} daily recurring task instances for ${today}`);
+    }
+    return null;
+  });

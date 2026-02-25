@@ -56,53 +56,62 @@ export const Kpi: React.FC = () => {
         {isOwner ? 'Full team KPI.' : 'Your personal KPI.'} Tasks on holidays and during absence are excluded.
       </p>
 
-      {pieData.length > 0 && (
-        <div className="mb-8 p-6 bg-white rounded-xl border border-slate-200 shadow-sm">
-          <h2 className="text-lg font-semibold text-slate-800 mb-4">Task Distribution</h2>
-          <div className="h-80">
-            <ResponsiveContainer width="100%" height="100%">
-              <PieChart>
-                <Pie
-                  data={pieData}
-                  cx="50%"
-                  cy="50%"
-                  innerRadius={60}
-                  outerRadius={100}
-                  paddingAngle={2}
-                  dataKey="value"
-                  label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
-                >
-                  {pieData.map((entry, index) => (
-                    <Cell key={entry.name} fill={entry.color} />
+      {/* One fold: Task distribution + summary metrics */}
+      <div className="mb-8 p-6 bg-white rounded-xl border border-slate-200 shadow-sm">
+        <h2 className="text-lg font-semibold text-slate-800 mb-4">Overview</h2>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
+          {pieData.length > 0 && (
+            <div>
+              <h3 className="text-base font-medium text-slate-700 mb-3">Task Distribution</h3>
+              <div className="h-64">
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie
+                      data={pieData}
+                      cx="50%"
+                      cy="50%"
+                      innerRadius={50}
+                      outerRadius={80}
+                      paddingAngle={2}
+                      dataKey="value"
+                      label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                    >
+                      {pieData.map((entry) => (
+                        <Cell key={entry.name} fill={entry.color} />
+                      ))}
+                    </Pie>
+                    <Tooltip formatter={(value: number) => [value, '']} />
+                    <Legend />
+                  </PieChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+          )}
+          <div className={pieData.length > 0 ? '' : 'lg:col-span-2'}>
+            <h3 className="text-base font-medium text-slate-700 mb-3">Summary Metrics</h3>
+            <div className="overflow-x-auto">
+              <table className="w-full border-collapse">
+                <thead>
+                  <tr className="border-b border-slate-200">
+                    <th className="text-left py-2 px-3 font-semibold text-slate-800">Metric</th>
+                    <th className="text-right py-2 px-3 font-semibold text-slate-800">Value</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {summaryRows.map((row) => (
+                    <tr key={row.label} className="border-b border-slate-100 hover:bg-slate-50">
+                      <td className="py-2 px-3 text-slate-700">{row.label}</td>
+                      <td className="py-2 px-3 text-right font-medium text-slate-800">{row.value}</td>
+                    </tr>
                   ))}
-                </Pie>
-                <Tooltip formatter={(value: number) => [value, '']} />
-                <Legend />
-              </PieChart>
-            </ResponsiveContainer>
+                </tbody>
+              </table>
+            </div>
           </div>
         </div>
-      )}
-
-      <div className="overflow-x-auto mb-8">
-        <table className="w-full border-collapse bg-white rounded-xl border border-slate-200 shadow-sm">
-          <thead>
-            <tr className="bg-slate-50 border-b border-slate-200">
-              <th className="text-left py-4 px-4 font-semibold text-slate-800">Metric</th>
-              <th className="text-right py-4 px-4 font-semibold text-slate-800">Value</th>
-            </tr>
-          </thead>
-          <tbody>
-            {summaryRows.map((row) => (
-              <tr key={row.label} className="border-b border-slate-100 hover:bg-slate-50">
-                <td className="py-3 px-4 text-slate-700">{row.label}</td>
-                <td className="py-3 px-4 text-right font-medium text-slate-800">{row.value}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
       </div>
 
+      {/* KPI by Member table below */}
       <h2 className="text-lg font-semibold text-slate-800 mb-4">
         {isOwner ? 'KPI by Member' : 'My KPI'}
       </h2>
