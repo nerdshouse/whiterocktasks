@@ -15,14 +15,15 @@ import {
   query,
   where,
   orderBy,
+  limit,
+  startAfter,
+  QueryDocumentSnapshot,
 } from 'firebase/firestore';
 import {
   User,
-  UserRole,
   Task,
   TaskStatus,
   TaskPriority,
-  RecurringType,
   Holiday,
   Absence,
   RemovalRequest,
@@ -134,6 +135,105 @@ export const api = {
   getTaskById: async (id: string): Promise<Task | null> => {
     const snap = await getDoc(doc(db, COLLECTIONS.TASKS, id));
     return snap.exists() ? docToTask(snap) : null;
+  },
+
+  /** Recent completed tasks for sidebar (e.g. limit 10). Requires Firestore index: status asc, completed_at desc. */
+  getRecentCompletedTasks: async (limitCount: number = 10): Promise<Task[]> => {
+    const tasksRef = collection(db, COLLECTIONS.TASKS);
+    const q = query(
+      tasksRef,
+      where('status', '==', 'completed'),
+      orderBy('completed_at', 'desc'),
+      limit(limitCount)
+    );
+    const snap = await getDocs(q);
+    return snap.docs.map((d) => docToTask(d));
+  },
+
+  /** Overdue tasks (server-side). Optional assignedToId for doer. Requires composite index. */
+  getOverdueTasks: async (
+    opts: { assignedToId?: string; limitCount?: number } = {}
+  ): Promise<Task[]> => {
+    const { assignedToId, limitCount = 50 } = opts;
+    const tasksRef = collection(db, COLLECTIONS.TASKS);
+    const today = new Date().toISOString().split('T')[0];
+    let q = query(
+      tasksRef,
+      where('status', 'in', ['pending', 'overdue']),
+      where('due_date', '<', today),
+      orderBy('due_date', 'asc'),
+      limit(limitCount)
+    );
+    if (assignedToId) {
+      q = query(
+        tasksRef,
+        where('assigned_to_id', '==', assignedToId),
+        where('status', 'in', ['pending', 'overdue']),
+        where('due_date', '<', today),
+        orderBy('due_date', 'asc'),
+        limit(limitCount)
+      );
+    }
+    const snap = await getDocs(q);
+    return snap.docs.map((d) => docToTask(d));
+  },
+
+  /** Completed tasks with required attachment for Bogus Attachment page. */
+  getBogusAttachmentTasks: async (limitCount: number = 50): Promise<Task[]> => {
+    const tasksRef = collection(db, COLLECTIONS.TASKS);
+    const q = query(
+      tasksRef,
+      where('status', '==', 'completed'),
+      where('attachment_required', '==', true),
+      orderBy('updated_at', 'desc'),
+      limit(limitCount)
+    );
+    const snap = await getDocs(q);
+    return snap.docs.map((d) => docToTask(d));
+  },
+
+  /** Paginated tasks. Returns tasks and lastDoc for next page. */
+  getTasksPaginated: async (opts: {
+    pageSize: number;
+    startAfterDoc?: QueryDocumentSnapshot | null;
+    assignedTo?: string;
+    assignedBy?: string;
+    status?: TaskStatus;
+  }): Promise<{ tasks: Task[]; lastDoc: QueryDocumentSnapshot | null }> => {
+    const { pageSize, startAfterDoc, assignedTo, assignedBy, status } = opts;
+    const tasksRef = collection(db, COLLECTIONS.TASKS);
+    const constraints: unknown[] = [orderBy('updated_at', 'desc'), limit(pageSize)];
+    if (assignedTo) {
+      constraints.unshift(where('assigned_to_id', '==', assignedTo));
+    } else if (assignedBy) {
+      constraints.unshift(where('assigned_by_id', '==', assignedBy));
+    } else if (status) {
+      constraints.unshift(where('status', '==', status));
+    }
+    if (startAfterDoc) {
+      constraints.push(startAfter(startAfterDoc));
+    }
+    const q = query(tasksRef, ...constraints);
+    const snap = await getDocs(q);
+    let tasks = snap.docs.map((d) => docToTask(d));
+    if (assignedTo && status) tasks = tasks.filter((t) => t.status === status);
+    const lastDoc =
+      snap.docs.length === pageSize ? snap.docs[snap.docs.length - 1] : null;
+    return { tasks, lastDoc };
+  },
+
+  /** Incomplete tasks for current user (e.g. removal request dropdown). Limit 100. */
+  getMyIncompleteTasks: async (userId: string, limitCount: number = 100): Promise<Task[]> => {
+    const tasksRef = collection(db, COLLECTIONS.TASKS);
+    const q = query(
+      tasksRef,
+      where('assigned_to_id', '==', userId),
+      where('status', 'in', ['pending', 'overdue']),
+      orderBy('updated_at', 'desc'),
+      limit(limitCount)
+    );
+    const snap = await getDocs(q);
+    return snap.docs.map((d) => docToTask(d));
   },
 
   createTask: async (
@@ -256,6 +356,34 @@ export const api = {
         resolved_by: data.resolved_by,
       };
     });
+  },
+
+  getRemovalRequestsPaginated: async (opts: {
+    limitCount: number;
+    startAfterDoc?: QueryDocumentSnapshot | null;
+  }): Promise<{ requests: RemovalRequest[]; lastDoc: QueryDocumentSnapshot | null }> => {
+    const { limitCount, startAfterDoc } = opts;
+    const ref = collection(db, COLLECTIONS.REMOVAL_REQUESTS);
+    const base = query(ref, orderBy('created_at', 'desc'), limit(limitCount));
+    const q = startAfterDoc ? query(ref, orderBy('created_at', 'desc'), limit(limitCount), startAfter(startAfterDoc)) : base;
+    const snap = await getDocs(q);
+    const requests = snap.docs.map((d) => {
+      const data = d.data();
+      return {
+        id: d.id,
+        task_id: data.task_id,
+        task_title: data.task_title,
+        requested_by_id: data.requested_by_id,
+        requested_by_name: data.requested_by_name,
+        reason: data.reason,
+        status: data.status || 'pending',
+        created_at: timestampToISO(data.created_at),
+        resolved_at: data.resolved_at ? timestampToISO(data.resolved_at) : undefined,
+        resolved_by: data.resolved_by,
+      };
+    });
+    const lastDoc = snap.docs.length === limitCount ? snap.docs[snap.docs.length - 1] : null;
+    return { requests, lastDoc };
   },
 
   createRemovalRequest: async (

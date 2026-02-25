@@ -1,13 +1,18 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { api } from '../services/api';
 import { RemovalRequest as RemovalRequestType, Task } from '../types';
 import { Button } from '../components/ui/Button';
 import { UserRole } from '../types';
+import type { QueryDocumentSnapshot } from 'firebase/firestore';
+
+const REQUESTS_PAGE_SIZE = 20;
 
 export const RemovalRequest: React.FC = () => {
   const { user } = useAuth();
   const [requests, setRequests] = useState<RemovalRequestType[]>([]);
+  const [lastRequestDoc, setLastRequestDoc] = useState<QueryDocumentSnapshot | null>(null);
+  const [hasNextPage, setHasNextPage] = useState(false);
   const [myTasks, setMyTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(true);
   const [taskId, setTaskId] = useState('');
@@ -15,17 +20,24 @@ export const RemovalRequest: React.FC = () => {
   const [submitting, setSubmitting] = useState(false);
   const isOwner = user?.role === UserRole.OWNER;
 
+  const loadRequests = useCallback(async (startAfterDoc?: QueryDocumentSnapshot | null) => {
+    const { requests: nextRequests, lastDoc } = await api.getRemovalRequestsPaginated({
+      limitCount: REQUESTS_PAGE_SIZE,
+      startAfterDoc: startAfterDoc ?? undefined,
+    });
+    setRequests(startAfterDoc ? (prev) => [...prev, ...nextRequests] : nextRequests);
+    setLastRequestDoc(lastDoc);
+    setHasNextPage(lastDoc != null);
+  }, []);
+
   useEffect(() => {
+    if (!user?.id) return;
+    setLoading(true);
     Promise.all([
-      api.getRemovalRequests(),
-      api.getTasks().then((t) =>
-        t.filter((x) => x.assigned_to_id === user?.id && x.status !== 'completed')
-      ),
-    ]).then(([r, t]) => {
-      setRequests(r);
-      setMyTasks(t);
-    }).finally(() => setLoading(false));
-  }, [user?.id]);
+      loadRequests(undefined),
+      api.getMyIncompleteTasks(user.id).then(setMyTasks),
+    ]).finally(() => setLoading(false));
+  }, [user?.id, loadRequests]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -46,10 +58,8 @@ export const RemovalRequest: React.FC = () => {
       });
       setTaskId('');
       setReason('');
-      setRequests(await api.getRemovalRequests());
-      setMyTasks(await api.getTasks().then((t) =>
-        t.filter((x) => x.assigned_to_id === user.id && x.status !== 'completed')
-      ));
+      await loadRequests(undefined);
+      setMyTasks(await api.getMyIncompleteTasks(user.id));
     } catch (err) {
       console.error(err);
     } finally {
@@ -64,13 +74,17 @@ export const RemovalRequest: React.FC = () => {
       if (status === 'approved') {
         await api.deleteTask(taskId);
       }
-      setRequests(await api.getRemovalRequests());
-      setMyTasks(await api.getTasks().then((t) =>
-        t.filter((x) => x.assigned_to_id === user.id && x.status !== 'completed')
-      ));
+      await loadRequests(undefined);
+      setMyTasks(await api.getMyIncompleteTasks(user.id));
     } catch (err) {
       console.error(err);
     }
+  };
+
+  const handleLoadMore = () => {
+    if (!lastRequestDoc || !hasNextPage) return;
+    setLoading(true);
+    loadRequests(lastRequestDoc).finally(() => setLoading(false));
   };
 
   if (loading) return <div className="text-slate-500">Loading...</div>;
@@ -197,6 +211,13 @@ export const RemovalRequest: React.FC = () => {
             </tbody>
           </table>
         </div>
+        {hasNextPage && (
+          <div className="mt-4 flex justify-center">
+            <Button variant="secondary" onClick={handleLoadMore} disabled={loading}>
+              {loading ? 'Loading...' : 'Load more'}
+            </Button>
+          </div>
+        )}
       </div>
     </div>
   );

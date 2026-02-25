@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { api } from '../services/api';
 import { Task, UserRole } from '../types';
@@ -6,14 +6,19 @@ import { useSearchParams } from 'react-router-dom';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { storage } from '../lib/firebase';
 import { Button } from '../components/ui/Button';
-import { isHoliday, compressImageForUpload } from '../lib/utils';
+import { isHoliday, compressImageForUpload, getPendingDays } from '../lib/utils';
 import { Paperclip, Check, X, HelpCircle, ExternalLink, FileText } from 'lucide-react';
+import type { QueryDocumentSnapshot } from 'firebase/firestore';
+
+const PAGE_SIZE = 20;
 
 export const TaskTable: React.FC = () => {
   const { user } = useAuth();
   const [searchParams] = useSearchParams();
   const highlightId = searchParams.get('highlight');
   const [tasks, setTasks] = useState<Task[]>([]);
+  const [lastDoc, setLastDoc] = useState<QueryDocumentSnapshot | null>(null);
+  const [hasNextPage, setHasNextPage] = useState(false);
   const [holidays, setHolidays] = useState<{ date: string; name: string }[]>([]);
   const [loading, setLoading] = useState(true);
   const [startDateFilter, setStartDateFilter] = useState('');
@@ -30,24 +35,37 @@ export const TaskTable: React.FC = () => {
   const isManager = user?.role === UserRole.MANAGER || user?.role === UserRole.OWNER;
   const isDoer = user?.role === UserRole.DOER;
 
+  const loadPage = useCallback(
+    async (startAfterDoc: QueryDocumentSnapshot | null | undefined, append: boolean) => {
+      const filters: { assignedTo?: string; assignedBy?: string; status?: 'completed' } = {};
+      if (isDoer) filters.assignedTo = user?.id ?? '';
+      if (isAuditor) filters.status = 'completed';
+      const { tasks: nextTasks, lastDoc: nextLastDoc } = await api.getTasksPaginated({
+        pageSize: PAGE_SIZE,
+        startAfterDoc: startAfterDoc ?? undefined,
+        ...filters,
+      });
+      setTasks((prev) => (append ? [...prev, ...nextTasks] : nextTasks));
+      setLastDoc(nextLastDoc);
+      setHasNextPage(nextLastDoc != null);
+      setLoading(false);
+    },
+    [user?.id, isDoer, isAuditor]
+  );
+
   useEffect(() => {
     const load = async () => {
-      const [t, h] = await Promise.all([api.getTasks(), api.getHolidays()]);
-      setTasks(t);
+      setLoading(true);
+      const [h] = await Promise.all([api.getHolidays()]);
       setHolidays(h);
-      setLoading(false);
+      await loadPage(undefined, false);
     };
     load();
-  }, []);
+  }, [loadPage]);
 
-  let filteredTasks = isAuditor
-    ? tasks.filter((t) => t.status === 'completed')
-    : isOwner || isManager
-    ? tasks
-    : tasks.filter((t) => t.assigned_to_id === user?.id || t.assigned_by_id === user?.id);
-
+  let filteredTasks = tasks;
   if (isDoer && startDateFilter) {
-    filteredTasks = filteredTasks.filter((t) => t.start_date === startDateFilter);
+    filteredTasks = tasks.filter((t) => t.start_date === startDateFilter);
   }
 
   const handleCompleteClick = (t: Task) => {
@@ -99,7 +117,8 @@ export const TaskTable: React.FC = () => {
         ...(url && { attachment_url: url }),
         ...(text && { attachment_text: text }),
       });
-      setTasks(await api.getTasks());
+      setLoading(true);
+      await loadPage(undefined, false);
       setCompleteTask(null);
       setAttachmentUrl('');
       setAttachmentText('');
@@ -124,18 +143,17 @@ export const TaskTable: React.FC = () => {
     if (!user) return;
     try {
       await api.setAuditStatus(taskId, status, user.name);
-      setTasks(await api.getTasks());
+      setLoading(true);
+      await loadPage(undefined, false);
     } catch (err) {
       console.error(err);
     }
   };
 
-  const getPendingDays = (dueDate: string) => {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const due = new Date(dueDate);
-    due.setHours(0, 0, 0, 0);
-    return Math.ceil((due.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+  const handleLoadMore = () => {
+    if (!lastDoc || !hasNextPage) return;
+    setLoading(true);
+    loadPage(lastDoc, true);
   };
 
   if (loading) return <div className="text-slate-500">Loading...</div>;
@@ -243,6 +261,13 @@ export const TaskTable: React.FC = () => {
             </tbody>
           </table>
         </div>
+        {hasNextPage && (
+          <div className="mt-4 flex justify-center">
+            <Button variant="secondary" onClick={handleLoadMore} disabled={loading}>
+              {loading ? 'Loading...' : 'Load more'}
+            </Button>
+          </div>
+        )}
       </div>
     );
   }
@@ -362,6 +387,13 @@ export const TaskTable: React.FC = () => {
           </tbody>
         </table>
       </div>
+      {hasNextPage && (
+        <div className="mt-4 flex justify-center">
+          <Button variant="secondary" onClick={handleLoadMore} disabled={loading}>
+            {loading ? 'Loading...' : 'Load more'}
+          </Button>
+        </div>
+      )}
 
       {completeTask && (
         <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">

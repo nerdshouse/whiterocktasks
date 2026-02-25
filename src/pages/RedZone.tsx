@@ -17,13 +17,12 @@ export const RedZone: React.FC = () => {
 
   const loadTasks = async () => {
     setLoading(true);
-    const all = await api.getTasks();
-    const today = new Date().toISOString().split('T')[0];
-    const overdue = all.filter(
-      (t) =>
-        (t.status === 'pending' || t.status === 'overdue') &&
-        t.due_date < today
-    );
+    const assignedToId =
+      user?.role === UserRole.DOER ? user?.id : undefined;
+    const overdue = await api.getOverdueTasks({
+      assignedToId,
+      limitCount: 50,
+    });
     setTasks(overdue);
     setLoading(false);
   };

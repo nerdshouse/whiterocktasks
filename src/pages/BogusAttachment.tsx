@@ -12,8 +12,8 @@ export const BogusAttachment: React.FC = () => {
   const [viewText, setViewText] = useState<string | null>(null);
 
   useEffect(() => {
-    api.getTasks().then((t) => {
-      setTasks(t.filter((x) => x.attachment_required && x.status === 'completed'));
+    api.getBogusAttachmentTasks(50).then((t) => {
+      setTasks(t);
       setLoading(false);
     });
   }, []);
@@ -22,9 +22,7 @@ export const BogusAttachment: React.FC = () => {
     if (!user) return;
     try {
       await api.setAuditStatus(taskId, status, user.name);
-      setTasks(await api.getTasks().then((t) =>
-        t.filter((x) => x.attachment_required && x.status === 'completed')
-      ));
+      setTasks(await api.getBogusAttachmentTasks(50));
     } catch (err) {
       console.error(err);
     }

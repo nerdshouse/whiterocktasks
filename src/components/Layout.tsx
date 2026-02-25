@@ -60,9 +60,7 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
 
   useEffect(() => {
     if (user && !location.pathname.includes('login')) {
-      api.getTasks().then((t) =>
-        setCompletedTasks(t.filter((x) => x.status === 'completed').slice(0, 10))
-      );
+      api.getRecentCompletedTasks(10).then(setCompletedTasks);
     }
   }, [user, location.pathname]);
 
