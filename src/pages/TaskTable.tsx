@@ -179,8 +179,13 @@ export const TaskTable: React.FC = () => {
             <tbody>
               {filteredTasks.map((t) => (
                 <tr key={t.id} className={highlightId === t.id ? 'bg-amber-50' : ''}>
-                  <td>{t.assigned_to_name}</td>
-                  <td>{t.assigned_to_city || '-'}</td>
+                  <td>
+                    {t.assigned_to_name}
+                    {t.assignee_deleted && (
+                      <span className="ml-2 text-xs px-2 py-0.5 rounded bg-slate-200 text-slate-600">Member deleted</span>
+                    )}
+                  </td>
+                  <td>{t.assigned_to_city || (t.assignee_deleted ? '—' : '-')}</td>
                   <td>{t.title}</td>
                   <td className="max-w-[150px] truncate" title={t.description}>
                     {t.description || '-'}
@@ -315,11 +320,19 @@ export const TaskTable: React.FC = () => {
                     {onHoliday && (
                       <span className="ml-2 text-xs text-orange-600">(Holiday)</span>
                     )}
+                    {t.assignee_deleted && (
+                      <span className="ml-2 text-xs px-2 py-0.5 rounded bg-slate-200 text-slate-600">Member deleted</span>
+                    )}
                   </td>
                   <td className="max-w-[200px] truncate" title={t.description}>
                     {t.description || '-'}
                   </td>
-                  <td>{t.assigned_to_name}</td>
+                  <td>
+                    {t.assigned_to_name}
+                    {t.assignee_deleted && (
+                      <span className="ml-2 text-xs px-2 py-0.5 rounded bg-slate-200 text-slate-600">Member deleted</span>
+                    )}
+                  </td>
                   <td>{t.start_date || '-'}</td>
                   <td>{t.due_date}</td>
                   <td>

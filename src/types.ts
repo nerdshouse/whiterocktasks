@@ -61,6 +61,7 @@ export interface Task {
   audited_by?: string;
   attachment_url?: string;
   attachment_text?: string;
+  assignee_deleted?: boolean;
 }
 
 export interface Holiday {

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { api } from '../services/api';
@@ -7,6 +7,14 @@ import { Button } from '../components/ui/Button';
 import { RECURRING_OPTIONS, PRIORITY_OPTIONS } from '../lib/utils';
 import { User, Task, RecurringType, TaskPriority } from '../types';
 import { UserRole } from '../types';
+import { Search, ChevronDown } from 'lucide-react';
+
+const ROLE_LABELS: Record<UserRole, string> = {
+  [UserRole.OWNER]: 'Owner',
+  [UserRole.MANAGER]: 'Manager',
+  [UserRole.DOER]: 'Doer',
+  [UserRole.AUDITOR]: 'Auditor',
+};
 
 export const AssignTask: React.FC = () => {
   const { user } = useAuth();
@@ -24,6 +32,9 @@ export const AssignTask: React.FC = () => {
   const [showAttachmentModal, setShowAttachmentModal] = useState(false);
   const [recurringDays, setRecurringDays] = useState<number[]>([]);
   const [assignedToId, setAssignedToId] = useState('');
+  const [assignToSearch, setAssignToSearch] = useState('');
+  const [assignDropdownOpen, setAssignDropdownOpen] = useState(false);
+  const assignDropdownRef = useRef<HTMLDivElement>(null);
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState('');
   const [holidays, setHolidays] = useState<{ date: string }[]>([]);
@@ -61,7 +72,11 @@ export const AssignTask: React.FC = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!user || !assignedToId) return;
+    if (!user) return;
+    if (!assignedToId) {
+      setAssignDropdownOpen(true);
+      return;
+    }
     setLoading(true);
     setSuccess('');
     try {
@@ -124,6 +139,27 @@ export const AssignTask: React.FC = () => {
   };
 
   const today = new Date().toISOString().split('T')[0];
+
+  const selectedUser = users.find((u) => u.id === assignedToId);
+  const assignFiltered = users.filter((u) => {
+    const s = assignToSearch.toLowerCase().trim();
+    if (!s) return true;
+    const name = (u.name || '').toLowerCase();
+    const email = (u.email || '').toLowerCase();
+    const city = (u.city || '').toLowerCase();
+    const role = (ROLE_LABELS[u.role] || '').toLowerCase();
+    return name.includes(s) || email.includes(s) || city.includes(s) || role.includes(s);
+  });
+
+  useEffect(() => {
+    const onOutside = (e: MouseEvent) => {
+      if (assignDropdownRef.current && !assignDropdownRef.current.contains(e.target as Node)) {
+        setAssignDropdownOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', onOutside);
+    return () => document.removeEventListener('mousedown', onOutside);
+  }, []);
 
   if (user?.role === UserRole.AUDITOR) return null;
 
@@ -224,21 +260,58 @@ export const AssignTask: React.FC = () => {
             Attachment required
           </label>
         </div>
-        <div>
+        <div ref={assignDropdownRef} className="relative">
           <label className="block text-sm font-medium text-slate-700 mb-1">Assign To</label>
-          <select
-            value={assignedToId}
-            onChange={(e) => setAssignedToId(e.target.value)}
-            required
-            className="w-full h-10 rounded-lg border border-slate-300 px-3 text-sm focus:ring-2 focus:ring-teal-500"
-          >
-            <option value="">Select member</option>
-            {users.map((u) => (
-              <option key={u.id} value={u.id}>
-                {u.name} {u.city ? `(${u.city})` : ''}
-              </option>
-            ))}
-          </select>
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+            <input
+              type="text"
+              value={assignDropdownOpen ? assignToSearch : (selectedUser ? `${selectedUser.name} · ${ROLE_LABELS[selectedUser.role]}${selectedUser.city ? ` · ${selectedUser.city}` : ''}` : '')}
+              onChange={(e) => {
+                setAssignToSearch(e.target.value);
+                setAssignDropdownOpen(true);
+                if (!e.target.value) setAssignedToId('');
+              }}
+              onFocus={() => setAssignDropdownOpen(true)}
+              placeholder="Search by name, role, or city..."
+              className="w-full h-10 pl-10 pr-10 rounded-lg border border-slate-300 px-3 text-sm focus:ring-2 focus:ring-teal-500 focus:border-transparent"
+              required={!!assignedToId}
+            />
+            <ChevronDown
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none"
+              size={18}
+            />
+          </div>
+          {assignDropdownOpen && (
+            <ul className="absolute z-10 mt-1 w-full max-h-56 overflow-auto rounded-lg border border-slate-200 bg-white shadow-lg py-1">
+              {assignFiltered.length === 0 ? (
+                <li className="py-2 px-3 text-sm text-slate-500">No member found</li>
+              ) : (
+                assignFiltered.map((u) => (
+                  <li
+                    key={u.id}
+                    role="option"
+                    aria-selected={assignedToId === u.id}
+                    onClick={() => {
+                      setAssignedToId(u.id);
+                      setAssignToSearch('');
+                      setAssignDropdownOpen(false);
+                    }}
+                    className={`cursor-pointer py-2.5 px-3 text-sm hover:bg-slate-50 ${assignedToId === u.id ? 'bg-teal-50 text-teal-800' : 'text-slate-700'}`}
+                  >
+                    <span className="font-medium">{u.name}</span>
+                    <span className="text-slate-500">
+                      {' · '}{ROLE_LABELS[u.role]}
+                      {u.city ? ` · ${u.city}` : ''}
+                    </span>
+                  </li>
+                ))
+              )}
+            </ul>
+          )}
+          {!assignedToId && assignDropdownOpen && (
+            <p className="mt-1 text-xs text-amber-600">Select a member to assign the task to.</p>
+          )}
         </div>
         {success && (
           <div className="bg-green-50 text-green-700 p-3 rounded-lg text-sm">{success}</div>

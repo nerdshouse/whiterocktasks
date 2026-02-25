@@ -60,6 +60,7 @@ const docToTask = (d: any): Task => {
     audited_by: data.audited_by,
     attachment_url: data.attachment_url,
     attachment_text: data.attachment_text,
+    assignee_deleted: data.assignee_deleted === true,
   };
 };
 
@@ -276,6 +277,42 @@ export const api = {
       audited_by: auditedBy,
       updated_at: isoToTimestamp(new Date().toISOString()),
     });
+  },
+
+  /** All tasks assigned to a user (for delete-member flow). */
+  getTasksAssignedTo: async (userId: string): Promise<Task[]> => {
+    const tasksRef = collection(db, COLLECTIONS.TASKS);
+    const q = query(
+      tasksRef,
+      where('assigned_to_id', '==', userId),
+      orderBy('updated_at', 'desc')
+    );
+    const snap = await getDocs(q);
+    return snap.docs.map((d) => docToTask(d));
+  },
+
+  /** Reassign all tasks from one user to another. */
+  reassignTasksToUser: async (
+    fromUserId: string,
+    toUser: Pick<User, 'id' | 'name' | 'city'>
+  ): Promise<void> => {
+    const tasks = await api.getTasksAssignedTo(fromUserId);
+    for (const t of tasks) {
+      await api.updateTask(t.id, {
+        assigned_to_id: toUser.id,
+        assigned_to_name: toUser.name,
+        assigned_to_city: toUser.city,
+        assignee_deleted: false,
+      });
+    }
+  },
+
+  /** Mark all tasks assigned to user as assignee_deleted (after member delete). */
+  markTasksAssigneeDeleted: async (userId: string): Promise<void> => {
+    const tasks = await api.getTasksAssignedTo(userId);
+    for (const t of tasks) {
+      await api.updateTask(t.id, { assignee_deleted: true });
+    }
   },
 
   // --- Holidays ---

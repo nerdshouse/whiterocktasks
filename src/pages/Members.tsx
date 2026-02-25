@@ -4,7 +4,14 @@ import { api } from '../services/api';
 import { User, UserRole } from '../types';
 import { Input } from '../components/ui/Input';
 import { Button } from '../components/ui/Button';
-import { UserPlus, UserMinus } from 'lucide-react';
+import { UserPlus, UserMinus, Pencil } from 'lucide-react';
+
+const ROLE_LABELS: Record<UserRole, string> = {
+  [UserRole.OWNER]: 'Owner',
+  [UserRole.MANAGER]: 'Manager',
+  [UserRole.DOER]: 'Doer',
+  [UserRole.AUDITOR]: 'Auditor',
+};
 
 export const Members: React.FC = () => {
   const { user } = useAuth();
@@ -19,6 +26,21 @@ export const Members: React.FC = () => {
   const [newUserPhone, setNewUserPhone] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
+
+  const [editingUser, setEditingUser] = useState<User | null>(null);
+  const [editName, setEditName] = useState('');
+  const [editEmail, setEditEmail] = useState('');
+  const [editPassword, setEditPassword] = useState('');
+  const [editRole, setEditRole] = useState<UserRole>(UserRole.DOER);
+  const [editCity, setEditCity] = useState('');
+  const [editPhone, setEditPhone] = useState('');
+  const [editSubmitting, setEditSubmitting] = useState(false);
+  const [editError, setEditError] = useState('');
+
+  const [deleteModal, setDeleteModal] = useState<{ user: User; taskCount: number } | null>(null);
+  const [deleteReassignToId, setDeleteReassignToId] = useState('');
+  const [deleteAction, setDeleteAction] = useState<'reassign' | 'mark_deleted' | null>(null);
+  const [deleteSubmitting, setDeleteSubmitting] = useState(false);
 
   const isOwner = user?.role === UserRole.OWNER;
   const isManager = user?.role === UserRole.MANAGER || user?.role === UserRole.OWNER;
@@ -55,13 +77,80 @@ export const Members: React.FC = () => {
     }
   };
 
-  const handleDeleteMember = async (id: string) => {
+  const handleDeleteMember = async (u: User) => {
+    const tasksAssigned = await api.getTasksAssignedTo(u.id);
+    if (tasksAssigned.length > 0) {
+      setDeleteModal({ user: u, taskCount: tasksAssigned.length });
+      setDeleteReassignToId('');
+      setDeleteAction(null);
+      return;
+    }
     if (!confirm('Remove this member? This cannot be undone.')) return;
     try {
-      await api.deleteUser(id);
+      await api.deleteUser(u.id);
       setUsers(await api.getUsers());
     } catch (err) {
       console.error(err);
+    }
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (!deleteModal) return;
+    const { user: u } = deleteModal;
+    setDeleteSubmitting(true);
+    try {
+      if (deleteAction === 'reassign' && deleteReassignToId) {
+        const toUser = users.find((x) => x.id === deleteReassignToId);
+        if (toUser) {
+          await api.reassignTasksToUser(u.id, toUser);
+        }
+      } else if (deleteAction === 'mark_deleted') {
+        await api.markTasksAssigneeDeleted(u.id);
+      }
+      await api.deleteUser(u.id);
+      setUsers(await api.getUsers());
+      setDeleteModal(null);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setDeleteSubmitting(false);
+    }
+  };
+
+  const openEditModal = (u: User) => {
+    setEditingUser(u);
+    setEditName(u.name);
+    setEditEmail(u.email);
+    setEditPassword('');
+    setEditRole(u.role);
+    setEditCity(u.city || '');
+    setEditPhone(u.phone || '');
+    setEditError('');
+  };
+
+  const handleEditSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingUser) return;
+    setEditSubmitting(true);
+    setEditError('');
+    try {
+      const updates: Partial<User> = {
+        name: editName,
+        email: editEmail,
+        role: editRole,
+        city: editCity || undefined,
+        phone: editPhone || undefined,
+      };
+      if (editPassword.trim()) {
+        updates.password = editPassword;
+      }
+      await api.updateUser(editingUser.id, updates);
+      setUsers(await api.getUsers());
+      setEditingUser(null);
+    } catch (err: any) {
+      setEditError(err?.message || 'Failed to update member');
+    } finally {
+      setEditSubmitting(false);
     }
   };
 
@@ -173,21 +262,139 @@ export const Members: React.FC = () => {
                 </td>
                 <td className="py-3 px-4 text-slate-600">{u.city || '-'}</td>
                 <td className="py-3 px-4 text-slate-600">{u.phone || '-'}</td>
-                <td className="py-3 px-4 text-right">
+                <td className="py-3 px-4 text-right flex gap-2 justify-end">
                   <Button
-                      size="sm"
-                      variant="danger"
-                      onClick={() => handleDeleteMember(u.id)}
-                      disabled={u.id === user?.id}
-                    >
-                      <UserMinus size={14} />
-                    </Button>
-                  </td>
+                    size="sm"
+                    variant="secondary"
+                    onClick={() => openEditModal(u)}
+                    disabled={u.id === user?.id}
+                    title="Edit member"
+                  >
+                    <Pencil size={14} />
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="danger"
+                    onClick={() => handleDeleteMember(u)}
+                    disabled={u.id === user?.id}
+                    title="Remove member"
+                  >
+                    <UserMinus size={14} />
+                  </Button>
+                </td>
               </tr>
             ))}
           </tbody>
         </table>
       </div>
+
+      {editingUser && (
+        <div className="fixed inset-0 bg-slate-900/40 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl border border-slate-200 shadow-xl max-w-lg w-full max-h-[90vh] overflow-y-auto">
+            <div className="p-6">
+              <h2 className="text-lg font-semibold text-slate-800 mb-4">Edit Member</h2>
+              {editError && (
+                <div className="mb-4 p-3 bg-red-50 text-red-700 rounded-lg text-sm">{editError}</div>
+              )}
+              <form onSubmit={handleEditSubmit} className="space-y-4">
+                <Input label="Name" value={editName} onChange={(e) => setEditName(e.target.value)} required />
+                <Input label="Email" type="email" value={editEmail} onChange={(e) => setEditEmail(e.target.value)} required />
+                <Input
+                  label="New password (leave blank to keep current)"
+                  type="password"
+                  value={editPassword}
+                  onChange={(e) => setEditPassword(e.target.value)}
+                  placeholder="••••••••"
+                />
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">Role</label>
+                  <select
+                    value={editRole}
+                    onChange={(e) => setEditRole(e.target.value as UserRole)}
+                    className="w-full h-10 rounded-lg border border-slate-300 px-3 text-sm"
+                  >
+                    <option value={UserRole.OWNER}>Owner</option>
+                    <option value={UserRole.MANAGER}>Manager</option>
+                    <option value={UserRole.DOER}>Doer</option>
+                    <option value={UserRole.AUDITOR}>Auditor</option>
+                  </select>
+                </div>
+                <Input label="City" value={editCity} onChange={(e) => setEditCity(e.target.value)} placeholder="City" />
+                <Input label="Phone (for WhatsApp)" value={editPhone} onChange={(e) => setEditPhone(e.target.value)} placeholder="+91..." />
+                <div className="flex gap-2 pt-2">
+                  <Button type="submit" isLoading={editSubmitting}>Save changes</Button>
+                  <Button type="button" variant="secondary" onClick={() => setEditingUser(null)}>Cancel</Button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {deleteModal && (
+        <div className="fixed inset-0 bg-slate-900/40 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl border border-slate-200 shadow-xl max-w-md w-full p-6">
+            <h2 className="text-lg font-semibold text-slate-800 mb-2">Delete member?</h2>
+            <p className="text-slate-600 text-sm mb-4">
+              <strong>{deleteModal.user.name}</strong> has <strong>{deleteModal.taskCount}</strong> task(s) assigned.
+              How do you want to proceed?
+            </p>
+            <div className="space-y-3 mb-6">
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="radio"
+                  name="deleteAction"
+                  checked={deleteAction === 'reassign'}
+                  onChange={() => setDeleteAction('reassign')}
+                  className="text-teal-600"
+                />
+                <span className="text-sm">Reassign tasks to another member</span>
+              </label>
+              {deleteAction === 'reassign' && (
+                <select
+                  value={deleteReassignToId}
+                  onChange={(e) => setDeleteReassignToId(e.target.value)}
+                  className="ml-6 w-full max-w-xs h-9 rounded-lg border border-slate-300 px-3 text-sm"
+                >
+                  <option value="">Select member</option>
+                  {users.filter((x) => x.id !== deleteModal.user.id).map((u) => (
+                    <option key={u.id} value={u.id}>
+                      {u.name} · {ROLE_LABELS[u.role]}
+                      {u.city ? ` · ${u.city}` : ''}
+                    </option>
+                  ))}
+                </select>
+              )}
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="radio"
+                  name="deleteAction"
+                  checked={deleteAction === 'mark_deleted'}
+                  onChange={() => setDeleteAction('mark_deleted')}
+                  className="text-teal-600"
+                />
+                <span className="text-sm">Just delete (mark tasks as &quot;Member deleted&quot;)</span>
+              </label>
+            </div>
+            <div className="flex gap-2 justify-end">
+              <Button variant="secondary" onClick={() => setDeleteModal(null)} disabled={deleteSubmitting}>
+                Cancel
+              </Button>
+              <Button
+                onClick={handleDeleteConfirm}
+                disabled={
+                  deleteSubmitting ||
+                  !deleteAction ||
+                  (deleteAction === 'reassign' ? !deleteReassignToId : false)
+                }
+                isLoading={deleteSubmitting}
+              >
+                Delete member
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
