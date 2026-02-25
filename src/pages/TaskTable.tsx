@@ -162,6 +162,17 @@ export const TaskTable: React.FC = () => {
     return (
       <div>
         <p className="text-slate-500 text-sm mb-4">Tasks pending audit. Mark as audited, bogus, or unclear.</p>
+        <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
+          <p className="text-sm text-slate-600">
+            Showing <span className="font-medium text-slate-800">{filteredTasks.length}</span> task{filteredTasks.length !== 1 ? 's' : ''}
+            {hasNextPage && '+'}
+          </p>
+          {hasNextPage && (
+            <Button size="sm" variant="secondary" onClick={handleLoadMore} disabled={loading}>
+              {loading ? 'Loading...' : 'Load more'}
+            </Button>
+          )}
+        </div>
         <div className="table-container">
           <table>
             <thead>
@@ -267,7 +278,7 @@ export const TaskTable: React.FC = () => {
           </table>
         </div>
         {hasNextPage && (
-          <div className="mt-4 flex justify-center">
+          <div className="mt-3 flex justify-center border-t border-slate-100 pt-3">
             <Button variant="secondary" onClick={handleLoadMore} disabled={loading}>
               {loading ? 'Loading...' : 'Load more'}
             </Button>
@@ -291,6 +302,17 @@ export const TaskTable: React.FC = () => {
             />
           </div>
         )}
+        <div className="flex flex-wrap items-center justify-between gap-2 sm:ml-auto">
+          <p className="text-sm text-slate-600">
+            Showing <span className="font-medium text-slate-800">{filteredTasks.length}</span> task{filteredTasks.length !== 1 ? 's' : ''}
+            {hasNextPage && '+'}
+          </p>
+          {hasNextPage && (
+            <Button size="sm" variant="secondary" onClick={handleLoadMore} disabled={loading}>
+              {loading ? 'Loading...' : 'Load more'}
+            </Button>
+          )}
+        </div>
       </div>
       <div className="table-container">
         <table>
@@ -401,7 +423,7 @@ export const TaskTable: React.FC = () => {
         </table>
       </div>
       {hasNextPage && (
-        <div className="mt-4 flex justify-center">
+        <div className="mt-3 flex justify-center">
           <Button variant="secondary" onClick={handleLoadMore} disabled={loading}>
             {loading ? 'Loading...' : 'Load more'}
           </Button>

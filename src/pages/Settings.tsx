@@ -78,173 +78,177 @@ export const Settings: React.FC = () => {
   };
 
   return (
-    <div>
-      <section>
-        <div className="card p-6">
-          <h2 className="text-lg font-semibold text-slate-800 mb-1 flex items-center gap-2">
-            <Calendar size={20} className="text-slate-500" />
-            Holidays & Absence
-          </h2>
-          <p className="text-sm text-slate-600 mb-6">
-            Company holidays and personal absences. Tasks on these dates are excluded from KPI.
-          </p>
+    <div className="max-w-4xl">
+      <section className="space-y-6">
+        <div className="card overflow-hidden">
+          <div className="bg-slate-50/80 border-b border-slate-200 px-6 py-4">
+            <h2 className="text-lg font-semibold text-slate-800 flex items-center gap-2">
+              <Calendar size={20} className="text-slate-500" />
+              Holidays & Absence
+            </h2>
+            <p className="text-sm text-slate-600 mt-1">
+              Company holidays and personal absences. Tasks on these dates are excluded from KPI.
+            </p>
+          </div>
 
-          {/* Holidays */}
-          <div className="mb-8">
-            <button
-              type="button"
-              onClick={() => setHolidaysOpen((o) => !o)}
-              className="w-full flex items-center justify-between text-left mb-3"
-            >
-              <h3 className="font-semibold text-slate-800">
-                Holidays
-                <span className="text-sm font-normal text-slate-500 ml-2">({holidays.length})</span>
-              </h3>
-              {holidaysOpen ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
-            </button>
-            {holidaysOpen && (
-              <>
-                {isManager && (
-                  <form onSubmit={handleAddHoliday} className="flex flex-wrap gap-4 mb-4">
+          <div className="p-6">
+            {/* Holidays */}
+            <div className="mb-8">
+              <button
+                type="button"
+                onClick={() => setHolidaysOpen((o) => !o)}
+                className="w-full flex items-center justify-between text-left py-2 rounded-lg hover:bg-slate-50 transition-colors"
+              >
+                <h3 className="font-semibold text-slate-800">
+                  Holidays
+                  <span className="text-sm font-normal text-slate-500 ml-2">({holidays.length})</span>
+                </h3>
+                {holidaysOpen ? <ChevronUp size={20} className="text-slate-400" /> : <ChevronDown size={20} className="text-slate-400" />}
+              </button>
+              {holidaysOpen && (
+                <>
+                  {isManager && (
+                    <form onSubmit={handleAddHoliday} className="flex flex-wrap gap-4 mb-4 p-4 bg-slate-50/50 rounded-lg">
+                      <Input
+                        label="Date"
+                        type="date"
+                        value={holidayDate}
+                        onChange={(e) => setHolidayDate(e.target.value)}
+                        required
+                      />
+                      <Input
+                        label="Name"
+                        value={holidayName}
+                        onChange={(e) => setHolidayName(e.target.value)}
+                        required
+                        placeholder="e.g. Diwali"
+                      />
+                      <div className="flex items-end">
+                        <Button type="submit" isLoading={loading}>
+                          Add Holiday
+                        </Button>
+                      </div>
+                    </form>
+                  )}
+                  <div
+                    className="overflow-y-auto border border-slate-200 rounded-lg bg-white"
+                    style={{ maxHeight: LIST_MAX_HEIGHT }}
+                  >
+                    <table className="w-full text-sm">
+                      <thead className="sticky top-0 bg-slate-50 z-10 border-b border-slate-200">
+                        <tr>
+                          <th className="text-left py-3 px-4 font-semibold text-slate-700">Date</th>
+                          <th className="text-left py-3 px-4 font-semibold text-slate-700">Name</th>
+                          {isManager && <th className="text-right py-3 px-4 font-semibold text-slate-700">Actions</th>}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {holidays.length === 0 ? (
+                          <tr>
+                            <td colSpan={isManager ? 3 : 2} className="py-8 px-4 text-center text-slate-500">
+                              No holidays added yet.
+                            </td>
+                          </tr>
+                        ) : (
+                          holidays.map((h) => (
+                            <tr key={h.id} className="border-b border-slate-100 hover:bg-slate-50/50">
+                              <td className="py-2.5 px-4 text-slate-700">{h.date}</td>
+                              <td className="py-2.5 px-4 font-medium text-slate-800">{h.name}</td>
+                              {isManager && (
+                                <td className="py-2.5 px-4 text-right">
+                                  <Button size="sm" variant="danger" onClick={() => handleDeleteHoliday(h.id)}>
+                                    Delete
+                                  </Button>
+                                </td>
+                              )}
+                            </tr>
+                          ))
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                </>
+              )}
+            </div>
+
+            {/* Absence */}
+            <div>
+              <button
+                type="button"
+                onClick={() => setAbsencesOpen((o) => !o)}
+                className="w-full flex items-center justify-between text-left py-2 rounded-lg hover:bg-slate-50 transition-colors"
+              >
+                <h3 className="font-semibold text-slate-800">
+                  Absence records
+                  <span className="text-sm font-normal text-slate-500 ml-2">({absences.length})</span>
+                </h3>
+                {absencesOpen ? <ChevronUp size={20} className="text-slate-400" /> : <ChevronDown size={20} className="text-slate-400" />}
+              </button>
+              {absencesOpen && (
+                <>
+                  <form onSubmit={handleMarkAbsent} className="flex flex-wrap gap-4 p-4 bg-slate-50/50 rounded-lg mb-4">
                     <Input
-                      label="Date"
+                      label="From Date"
                       type="date"
-                      value={holidayDate}
-                      onChange={(e) => setHolidayDate(e.target.value)}
+                      value={absenceFrom}
+                      onChange={(e) => setAbsenceFrom(e.target.value)}
                       required
                     />
                     <Input
-                      label="Name"
-                      value={holidayName}
-                      onChange={(e) => setHolidayName(e.target.value)}
+                      label="To Date"
+                      type="date"
+                      value={absenceTo}
+                      onChange={(e) => setAbsenceTo(e.target.value)}
                       required
-                      placeholder="e.g. Diwali"
+                    />
+                    <Input
+                      label="Reason (optional)"
+                      value={absenceReason}
+                      onChange={(e) => setAbsenceReason(e.target.value)}
+                      placeholder="Leave, sick, etc."
                     />
                     <div className="flex items-end">
                       <Button type="submit" isLoading={loading}>
-                        Add Holiday
+                        Mark myself absent
                       </Button>
                     </div>
                   </form>
-                )}
-                <div
-                  className="table-container overflow-y-auto border border-slate-200 rounded-lg"
-                  style={{ maxHeight: LIST_MAX_HEIGHT }}
-                >
-                  <table>
-                    <thead className="sticky top-0 bg-slate-50 z-10">
-                      <tr>
-                        <th>Date</th>
-                        <th>Name</th>
-                        {isManager && <th className="text-right">Actions</th>}
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {holidays.length === 0 ? (
+                  <div
+                    className="overflow-y-auto border border-slate-200 rounded-lg bg-white"
+                    style={{ maxHeight: LIST_MAX_HEIGHT }}
+                  >
+                    <table className="w-full text-sm">
+                      <thead className="sticky top-0 bg-slate-50 z-10 border-b border-slate-200">
                         <tr>
-                          <td colSpan={isManager ? 3 : 2} className="py-8 px-4 text-center text-slate-500">
-                            No holidays added yet.
-                          </td>
+                          <th className="text-left py-3 px-4 font-semibold text-slate-700">Member</th>
+                          <th className="text-left py-3 px-4 font-semibold text-slate-700">From</th>
+                          <th className="text-left py-3 px-4 font-semibold text-slate-700">To</th>
+                          <th className="text-left py-3 px-4 font-semibold text-slate-700">Reason</th>
                         </tr>
-                      ) : (
-                        holidays.map((h) => (
-                          <tr key={h.id}>
-                            <td>{h.date}</td>
-                            <td className="font-medium text-slate-800">{h.name}</td>
-                            {isManager && (
-                              <td className="text-right">
-                                <Button size="sm" variant="danger" onClick={() => handleDeleteHoliday(h.id)}>
-                                  Delete
-                                </Button>
-                              </td>
-                            )}
+                      </thead>
+                      <tbody>
+                        {absences.length === 0 ? (
+                          <tr>
+                            <td colSpan={4} className="py-8 px-4 text-center text-slate-500">
+                              No absence records yet.
+                            </td>
                           </tr>
-                        ))
-                      )}
-                    </tbody>
-                  </table>
-                </div>
-              </>
-            )}
-          </div>
-
-          {/* Absence */}
-          <div>
-            <button
-              type="button"
-              onClick={() => setAbsencesOpen((o) => !o)}
-              className="w-full flex items-center justify-between text-left mb-3"
-            >
-              <h3 className="font-semibold text-slate-800">
-                Absence records
-                <span className="text-sm font-normal text-slate-500 ml-2">({absences.length})</span>
-              </h3>
-              {absencesOpen ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
-            </button>
-            {absencesOpen && (
-              <>
-                <form onSubmit={handleMarkAbsent} className="flex flex-wrap gap-4 max-w-md mb-4">
-                  <Input
-                    label="From Date"
-                    type="date"
-                    value={absenceFrom}
-                    onChange={(e) => setAbsenceFrom(e.target.value)}
-                    required
-                  />
-                  <Input
-                    label="To Date"
-                    type="date"
-                    value={absenceTo}
-                    onChange={(e) => setAbsenceTo(e.target.value)}
-                    required
-                  />
-                  <Input
-                    label="Reason (optional)"
-                    value={absenceReason}
-                    onChange={(e) => setAbsenceReason(e.target.value)}
-                    placeholder="Leave, sick, etc."
-                  />
-                  <div className="flex items-end">
-                    <Button type="submit" isLoading={loading}>
-                      Mark myself absent
-                    </Button>
+                        ) : (
+                          absences.map((a) => (
+                            <tr key={a.id} className="border-b border-slate-100 hover:bg-slate-50/50">
+                              <td className="py-2.5 px-4 font-medium text-slate-800">{a.user_name}</td>
+                              <td className="py-2.5 px-4 text-slate-700">{a.from_date}</td>
+                              <td className="py-2.5 px-4 text-slate-700">{a.to_date}</td>
+                              <td className="py-2.5 px-4 text-slate-600">{a.reason || '-'}</td>
+                            </tr>
+                          ))
+                        )}
+                      </tbody>
+                    </table>
                   </div>
-                </form>
-                <div
-                  className="table-container overflow-y-auto border border-slate-200 rounded-lg"
-                  style={{ maxHeight: LIST_MAX_HEIGHT }}
-                >
-                  <table>
-                    <thead className="sticky top-0 bg-slate-50 z-10">
-                      <tr>
-                        <th>Member</th>
-                        <th>From Date</th>
-                        <th>To Date</th>
-                        <th>Reason</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {absences.length === 0 ? (
-                        <tr>
-                          <td colSpan={4} className="py-8 px-4 text-center text-slate-500">
-                            No absence records yet.
-                          </td>
-                        </tr>
-                      ) : (
-                        absences.map((a) => (
-                          <tr key={a.id} className="border-b border-slate-100 hover:bg-slate-50">
-                            <td className="py-3 px-4 font-medium text-slate-800">{a.user_name}</td>
-                            <td className="py-3 px-4 text-slate-700">{a.from_date}</td>
-                            <td className="py-3 px-4 text-slate-700">{a.to_date}</td>
-                            <td className="py-3 px-4 text-slate-600">{a.reason || '-'}</td>
-                          </tr>
-                        ))
-                      )}
-                    </tbody>
-                  </table>
-                </div>
-              </>
-            )}
+                </>
+              )}
+            </div>
           </div>
         </div>
       </section>

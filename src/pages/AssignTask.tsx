@@ -164,161 +164,170 @@ export const AssignTask: React.FC = () => {
   if (user?.role === UserRole.AUDITOR) return null;
 
   return (
-    <div>
-      <form onSubmit={handleSubmit} className="space-y-6 max-w-xl">
-        <Input
-          label="Task Title"
-          value={title}
-          onChange={(e) => setTitle(e.target.value)}
-          required
-          placeholder="Enter task title"
-        />
-        <div>
-          <label className="block text-sm font-medium text-slate-700 mb-1">Description</label>
-          <textarea
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
-            rows={4}
-            className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:ring-2 focus:ring-teal-500 focus:border-transparent"
-            placeholder="Task description..."
-          />
-        </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <Input
-            label="Start Date"
-            type="date"
-            value={startDate}
-            onChange={(e) => setStartDate(e.target.value)}
-            min={today}
-          />
-          <Input
-            label="Due Date"
-            type="date"
-            value={dueDate}
-            onChange={(e) => setDueDate(e.target.value)}
-            required
-            min={startDate || today}
-          />
-          <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">Priority</label>
-            <select
-              value={priority}
-              onChange={(e) => setPriority(e.target.value as TaskPriority)}
-              className="w-full h-10 rounded-lg border border-slate-300 px-3 text-sm focus:ring-2 focus:ring-teal-500"
-            >
-              {PRIORITY_OPTIONS.map((o) => (
-                <option key={o.value} value={o.value}>
-                  {o.label}
-                </option>
-              ))}
-            </select>
-          </div>
-        </div>
-        <div>
-          <label className="block text-sm font-medium text-slate-700 mb-1">Recurring</label>
-          <select
-            value={recurring}
-            onChange={(e) => setRecurring(e.target.value as RecurringType)}
-            className="w-full h-10 rounded-lg border border-slate-300 px-3 text-sm focus:ring-2 focus:ring-teal-500"
-          >
-            {RECURRING_OPTIONS.map((o) => (
-              <option key={o.value} value={o.value}>
-                {o.label}
-              </option>
-            ))}
-          </select>
-          {recurring === 'daily' && (
-            <div className="mt-2">
-              <p className="text-xs text-slate-600 mb-2">On which days of the week?</p>
-              <div className="flex flex-wrap gap-2">
-                {DAYS.map((d) => (
-                  <button
-                    key={d.value}
-                    type="button"
-                    onClick={() => toggleDay(d.value)}
-                    className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${recurringDays.includes(d.value)
-                      ? 'bg-teal-600 text-white'
-                      : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                      }`}
-                  >
-                    {d.label}
-                  </button>
-                ))}
+    <div className="w-full max-w-6xl">
+      <form onSubmit={handleSubmit} className="space-y-6">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div className="space-y-6">
+            <Input
+              label="Task Title"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              required
+              placeholder="Enter task title"
+            />
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1">Description</label>
+              <textarea
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                rows={4}
+                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:ring-2 focus:ring-teal-500 focus:border-transparent"
+                placeholder="Task description..."
+              />
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <Input
+                label="Start Date"
+                type="date"
+                value={startDate}
+                onChange={(e) => setStartDate(e.target.value)}
+                min={today}
+              />
+              <Input
+                label="Due Date"
+                type="date"
+                value={dueDate}
+                onChange={(e) => setDueDate(e.target.value)}
+                required
+                min={startDate || today}
+              />
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Priority</label>
+                <select
+                  value={priority}
+                  onChange={(e) => setPriority(e.target.value as TaskPriority)}
+                  className="w-full h-10 rounded-lg border border-slate-300 px-3 text-sm focus:ring-2 focus:ring-teal-500"
+                >
+                  {PRIORITY_OPTIONS.map((o) => (
+                    <option key={o.value} value={o.value}>
+                      {o.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Recurring</label>
+                <select
+                  value={recurring}
+                  onChange={(e) => setRecurring(e.target.value as RecurringType)}
+                  className="w-full h-10 rounded-lg border border-slate-300 px-3 text-sm focus:ring-2 focus:ring-teal-500"
+                >
+                  {RECURRING_OPTIONS.map((o) => (
+                    <option key={o.value} value={o.value}>
+                      {o.label}
+                    </option>
+                  ))}
+                </select>
               </div>
             </div>
-          )}
-        </div>
-        <div className="flex items-center gap-2">
-          <input
-            type="checkbox"
-            id="attachment"
-            checked={attachmentRequired}
-            onChange={(e) => setAttachmentRequired(e.target.checked)}
-            className="rounded border-slate-300 text-teal-600 focus:ring-teal-500"
-          />
-          <label htmlFor="attachment" className="text-sm font-medium text-slate-700">
-            Attachment required
-          </label>
-        </div>
-        <div ref={assignDropdownRef} className="relative">
-          <label className="block text-sm font-medium text-slate-700 mb-1">Assign To</label>
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
-            <input
-              type="text"
-              value={assignDropdownOpen ? assignToSearch : (selectedUser ? `${selectedUser.name} · ${ROLE_LABELS[selectedUser.role]}${selectedUser.city ? ` · ${selectedUser.city}` : ''}` : '')}
-              onChange={(e) => {
-                setAssignToSearch(e.target.value);
-                setAssignDropdownOpen(true);
-                if (!e.target.value) setAssignedToId('');
-              }}
-              onFocus={() => setAssignDropdownOpen(true)}
-              placeholder="Search by name, role, or city..."
-              className="w-full h-10 pl-10 pr-10 rounded-lg border border-slate-300 px-3 text-sm focus:ring-2 focus:ring-teal-500 focus:border-transparent"
-              required={!!assignedToId}
-            />
-            <ChevronDown
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none"
-              size={18}
-            />
+            {recurring === 'daily' && (
+              <div className="p-4 bg-slate-50 rounded-lg">
+                <p className="text-xs text-slate-600 mb-2">On which days of the week?</p>
+                <div className="flex flex-wrap gap-2">
+                  {DAYS.map((d) => (
+                    <button
+                      key={d.value}
+                      type="button"
+                      onClick={() => toggleDay(d.value)}
+                      className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${recurringDays.includes(d.value)
+                        ? 'bg-teal-600 text-white'
+                        : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                        }`}
+                    >
+                      {d.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
-          {assignDropdownOpen && (
-            <ul className="absolute z-10 mt-1 w-full max-h-56 overflow-auto rounded-lg border border-slate-200 bg-white shadow-lg py-1">
-              {assignFiltered.length === 0 ? (
-                <li className="py-2 px-3 text-sm text-slate-500">No member found</li>
-              ) : (
-                assignFiltered.map((u) => (
-                  <li
-                    key={u.id}
-                    role="option"
-                    aria-selected={assignedToId === u.id}
-                    onClick={() => {
-                      setAssignedToId(u.id);
-                      setAssignToSearch('');
-                      setAssignDropdownOpen(false);
-                    }}
-                    className={`cursor-pointer py-2.5 px-3 text-sm hover:bg-slate-50 ${assignedToId === u.id ? 'bg-teal-50 text-teal-800' : 'text-slate-700'}`}
-                  >
-                    <span className="font-medium">{u.name}</span>
-                    <span className="text-slate-500">
-                      {' · '}{ROLE_LABELS[u.role]}
-                      {u.city ? ` · ${u.city}` : ''}
-                    </span>
-                  </li>
-                ))
+
+          <div className="space-y-6">
+            <div className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                id="attachment"
+                checked={attachmentRequired}
+                onChange={(e) => setAttachmentRequired(e.target.checked)}
+                className="rounded border-slate-300 text-teal-600 focus:ring-teal-500"
+              />
+              <label htmlFor="attachment" className="text-sm font-medium text-slate-700">
+                Attachment required
+              </label>
+            </div>
+            <div ref={assignDropdownRef} className="relative">
+              <label className="block text-sm font-medium text-slate-700 mb-1">Assign To</label>
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+                <input
+                  type="text"
+                  value={assignDropdownOpen ? assignToSearch : (selectedUser ? `${selectedUser.name} · ${ROLE_LABELS[selectedUser.role]}${selectedUser.city ? ` · ${selectedUser.city}` : ''}` : '')}
+                  onChange={(e) => {
+                    setAssignToSearch(e.target.value);
+                    setAssignDropdownOpen(true);
+                    if (!e.target.value) setAssignedToId('');
+                  }}
+                  onFocus={() => setAssignDropdownOpen(true)}
+                  placeholder="Search by name, role, or city..."
+                  className="w-full h-10 pl-10 pr-10 rounded-lg border border-slate-300 px-3 text-sm focus:ring-2 focus:ring-teal-500 focus:border-transparent"
+                  required={!!assignedToId}
+                />
+                <ChevronDown
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none"
+                  size={18}
+                />
+              </div>
+              {assignDropdownOpen && (
+                <ul className="absolute z-10 mt-1 w-full max-h-56 overflow-auto rounded-lg border border-slate-200 bg-white shadow-lg py-1">
+                  {assignFiltered.length === 0 ? (
+                    <li className="py-2 px-3 text-sm text-slate-500">No member found</li>
+                  ) : (
+                    assignFiltered.map((u) => (
+                      <li
+                        key={u.id}
+                        role="option"
+                        aria-selected={assignedToId === u.id}
+                        onClick={() => {
+                          setAssignedToId(u.id);
+                          setAssignToSearch('');
+                          setAssignDropdownOpen(false);
+                        }}
+                        className={`cursor-pointer py-2.5 px-3 text-sm hover:bg-slate-50 ${assignedToId === u.id ? 'bg-teal-50 text-teal-800' : 'text-slate-700'}`}
+                      >
+                        <span className="font-medium">{u.name}</span>
+                        <span className="text-slate-500">
+                          {' · '}{ROLE_LABELS[u.role]}
+                          {u.city ? ` · ${u.city}` : ''}
+                        </span>
+                      </li>
+                    ))
+                  )}
+                </ul>
               )}
-            </ul>
-          )}
-          {!assignedToId && assignDropdownOpen && (
-            <p className="mt-1 text-xs text-amber-600">Select a member to assign the task to.</p>
-          )}
+              {!assignedToId && assignDropdownOpen && (
+                <p className="mt-1 text-xs text-amber-600">Select a member to assign the task to.</p>
+              )}
+            </div>
+            {success && (
+              <div className="bg-green-50 text-green-700 p-3 rounded-lg text-sm">{success}</div>
+            )}
+            <Button type="submit" isLoading={loading}>
+              Save & Assign
+            </Button>
+          </div>
         </div>
-        {success && (
-          <div className="bg-green-50 text-green-700 p-3 rounded-lg text-sm">{success}</div>
-        )}
-        <Button type="submit" isLoading={loading}>
-          Save & Assign
-        </Button>
       </form>
 
       {showAttachmentModal && (

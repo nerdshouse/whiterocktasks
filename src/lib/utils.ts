@@ -6,7 +6,7 @@ export const RECURRING_OPTIONS = [
   { value: 'weekly', label: 'Weekly' },
   { value: 'fortnightly', label: 'Fortnightly' },
   { value: 'monthly', label: 'Monthly' },
-  { value: 'quarterly', label: 'Quarterly (QLY)' },
+  { value: 'quarterly', label: 'Quarterly' },
   { value: 'half_yearly', label: 'Half Yearly' },
   { value: 'yearly', label: 'Yearly' },
 ] as const;

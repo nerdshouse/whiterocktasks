@@ -161,7 +161,7 @@ export const Members: React.FC = () => {
     <div>
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
         {isOwner && (
-          <Button onClick={() => setShowAddForm(!showAddForm)}>
+          <Button onClick={() => setShowAddForm(true)}>
             <UserPlus size={18} className="mr-2" />
             Add Member
           </Button>
@@ -169,73 +169,74 @@ export const Members: React.FC = () => {
       </div>
 
       {showAddForm && isOwner && (
-        <form
-          onSubmit={handleAddMember}
-          className="mb-8 p-6 bg-white rounded-xl border border-slate-200 max-w-lg"
-        >
-          <h2 className="font-semibold text-slate-800 mb-4">Add New Member</h2>
-          {error && (
-            <div className="mb-4 p-3 bg-red-50 text-red-700 rounded-lg text-sm">{error}</div>
-          )}
-          <div className="space-y-4">
-            <Input
-              label="Name"
-              value={newUserName}
-              onChange={(e) => setNewUserName(e.target.value)}
-              required
-              placeholder="Full name"
-            />
-            <Input
-              label="Email"
-              type="email"
-              value={newUserEmail}
-              onChange={(e) => setNewUserEmail(e.target.value)}
-              required
-              placeholder="email@company.com"
-            />
-            <Input
-              label="Password"
-              type="password"
-              value={newUserPassword}
-              onChange={(e) => setNewUserPassword(e.target.value)}
-              required
-              placeholder="••••••••"
-            />
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">Role</label>
-              <select
-                value={newUserRole}
-                onChange={(e) => setNewUserRole(e.target.value as UserRole)}
-                className="w-full h-10 rounded-lg border border-slate-300 px-3 text-sm"
-              >
-                <option value={UserRole.OWNER}>Owner</option>
-                <option value={UserRole.MANAGER}>Manager</option>
-                <option value={UserRole.DOER}>Doer</option>
-                <option value={UserRole.AUDITOR}>Auditor</option>
-              </select>
-            </div>
-            <Input
-              label="City"
-              value={newUserCity}
-              onChange={(e) => setNewUserCity(e.target.value)}
-              placeholder="City"
-            />
-            <Input
-              label="Phone (for WhatsApp)"
-              value={newUserPhone}
-              onChange={(e) => setNewUserPhone(e.target.value)}
-              placeholder="+91..."
-            />
-            <div className="flex gap-2">
-              <Button type="submit" isLoading={submitting}>
-                Add Member
-              </Button>
-              <Button type="button" variant="secondary" onClick={() => setShowAddForm(false)}>
-                Cancel
-              </Button>
+        <div className="fixed inset-0 bg-slate-900/40 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl border border-slate-200 shadow-xl max-w-lg w-full max-h-[90vh] overflow-y-auto">
+            <div className="p-6">
+              <h2 className="font-semibold text-slate-800 mb-4">Add New Member</h2>
+              {error && (
+                <div className="mb-4 p-3 bg-red-50 text-red-700 rounded-lg text-sm">{error}</div>
+              )}
+              <form onSubmit={handleAddMember} className="space-y-4">
+                <Input
+                  label="Name"
+                  value={newUserName}
+                  onChange={(e) => setNewUserName(e.target.value)}
+                  required
+                  placeholder="Full name"
+                />
+                <Input
+                  label="Email"
+                  type="email"
+                  value={newUserEmail}
+                  onChange={(e) => setNewUserEmail(e.target.value)}
+                  required
+                  placeholder="email@company.com"
+                />
+                <Input
+                  label="Password"
+                  type="password"
+                  value={newUserPassword}
+                  onChange={(e) => setNewUserPassword(e.target.value)}
+                  required
+                  placeholder="••••••••"
+                />
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">Role</label>
+                  <select
+                    value={newUserRole}
+                    onChange={(e) => setNewUserRole(e.target.value as UserRole)}
+                    className="w-full h-10 rounded-lg border border-slate-300 px-3 text-sm"
+                  >
+                    <option value={UserRole.OWNER}>Owner</option>
+                    <option value={UserRole.MANAGER}>Manager</option>
+                    <option value={UserRole.DOER}>Doer</option>
+                    <option value={UserRole.AUDITOR}>Auditor</option>
+                  </select>
+                </div>
+                <Input
+                  label="City"
+                  value={newUserCity}
+                  onChange={(e) => setNewUserCity(e.target.value)}
+                  placeholder="City"
+                />
+                <Input
+                  label="Phone (for WhatsApp)"
+                  value={newUserPhone}
+                  onChange={(e) => setNewUserPhone(e.target.value)}
+                  placeholder="+91..."
+                />
+                <div className="flex gap-2 pt-2">
+                  <Button type="submit" isLoading={submitting}>
+                    Add Member
+                  </Button>
+                  <Button type="button" variant="secondary" onClick={() => { setShowAddForm(false); setError(''); setNewUserName(''); setNewUserEmail(''); setNewUserPassword(''); setNewUserCity(''); setNewUserPhone(''); setNewUserRole(UserRole.DOER); }}>
+                    Cancel
+                  </Button>
+                </div>
+              </form>
             </div>
           </div>
-        </form>
+        </div>
       )}
 
       <div className="overflow-x-auto">
