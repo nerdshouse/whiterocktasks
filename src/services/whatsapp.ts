@@ -1,67 +1,79 @@
-/**
- * 11za WhatsApp API client for sending template messages.
- * See: https://app.11za.in/apis/template/sendTemplate
- */
+import axios from 'axios';
 
-const API_URL =
-  import.meta.env.VITE_11ZA_API_URL || 'https://app.11za.in/apis/template/sendTemplate';
-const ORIGIN_WEBSITE =
-  import.meta.env.VITE_11ZA_ORIGIN_WEBSITE || 'https://whiterock.co.in/';
-const AUTH_TOKEN = import.meta.env.VITE_11ZA_AUTH_TOKEN || '';
+const API_URL = import.meta.env.VITE_11ZA_API_URL || 'https://app.11za.in/apis/template/sendTemplate';
+const ORIGIN_WEBSITE = import.meta.env.VITE_11ZA_ORIGIN_WEBSITE || 'https://whiterock.co.in/';
+const AUTH_TOKEN = import.meta.env.VITE_11ZA_AUTH_TOKEN || 'U2FsdGVkX19G5PWypU9DVsSN8DXcIfFiaZV02Ye2Pu7Mih1M1eXKaD9KIqKqoa1JyI7te4q4Bv1/RxGn6x9va5yc7V6kfHGorsb82/0+r1I90u0yP6eU1vBK9lXI2Len3IwLGpcpHqARs4wUz7hGYRPTYvqSYpDHH6dLPeWqgaaPsdADWfIv5Caz+rnSknYT';
 
-/** Normalize phone to 11za format: country code + number, no + or spaces (e.g. 919876543210) */
-export function normalizePhone(phone: string): string {
-  const digits = phone.replace(/\D/g, '');
-  if (digits.length === 10 && !digits.startsWith('0')) return '91' + digits;
-  if (digits.startsWith('91') && digits.length === 12) return digits;
-  return digits;
-}
-
-export interface SendTemplateParams {
-  /** Recipient phone (will be normalized) */
+export interface SendTaskAssignmentParams {
   phone: string;
-  /** Template name as created in 11za dashboard */
-  templateName: string;
-  /** Body variables in order ({{1}}, {{2}}, ...) */
-  bodyParams?: string[];
-  /** Optional header variable (if template has header) */
-  headerParam?: string;
+  templateName?: string;
+  taskName: string;
+  dueDate: string;
+  priority: string;
+  description: string;
+  link: string;
 }
 
-/**
- * Send a WhatsApp template message via 11za API.
- * You must create the template in 11za dashboard and pass matching templateName and params.
- */
-export async function sendTemplate(params: SendTemplateParams): Promise<void> {
-  const { phone, templateName, bodyParams = [], headerParam } = params;
-  const normalizedPhone = normalizePhone(phone);
-  if (!normalizedPhone) throw new Error('Invalid phone number');
-
-  if (!AUTH_TOKEN) {
-    console.warn('[11za] VITE_11ZA_AUTH_TOKEN not set; skipping WhatsApp send');
-    return;
+class WhatsappService {
+  /**
+   * Helper to format phone numbers properly (ensures country code and strips special characters)
+   */
+  private normalizePhone(phone: string): string {
+    const digits = phone.replace(/\D/g, '');
+    if (digits.length === 10 && !digits.startsWith('0')) return '91' + digits;
+    if (digits.startsWith('91') && digits.length === 12) return digits;
+    return digits; // Fallback to raw digits if format is unknown
   }
 
-  const body: Record<string, unknown> = {
-    phone: normalizedPhone,
-    templateName,
-    originWebsite: ORIGIN_WEBSITE,
-  };
-  if (bodyParams.length) body.bodyParams = bodyParams;
-  if (headerParam != null) body.headerParam = headerParam;
+  /**
+   * Utility to sanitize the originWebsite (removes backticks or spaces)
+   */
+  private sanitizeOrigin(origin: string): string {
+    return origin.replace(/[`"' ]/g, '').trim();
+  }
 
-  const res = await fetch(API_URL, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${AUTH_TOKEN}`,
-      ...(ORIGIN_WEBSITE ? { 'X-Origin-Website': ORIGIN_WEBSITE } : {}),
-    },
-    body: JSON.stringify(body),
-  });
+  /**
+   * Send a WhatsApp template message specifically for task assignments.
+   */
+  public async sendTaskAssignment(params: SendTaskAssignmentParams): Promise<void> {
+    const { phone, templateName, taskName, dueDate, priority, description, link } = params;
+    const normalizedPhone = this.normalizePhone(phone);
+    const sanitizedOrigin = this.sanitizeOrigin(ORIGIN_WEBSITE);
 
-  if (!res.ok) {
-    const text = await res.text();
-    throw new Error(`11za API error ${res.status}: ${text}`);
+    if (!AUTH_TOKEN) {
+      console.warn('[WhatsappService] VITE_11ZA_AUTH_TOKEN not set; skipping WhatsApp send');
+      return;
+    }
+
+    const payload = {
+      sendto: normalizedPhone,
+      authToken: AUTH_TOKEN,
+      originWebsite: sanitizedOrigin,
+      language: "en",
+      templateName: templateName || 'task_assigned',
+      name: taskName,
+      data: [
+        taskName,
+        dueDate,
+        priority,
+        description,
+        link
+      ]
+    };
+
+    try {
+      const response = await axios.post(API_URL, payload, {
+        headers: {
+          'Content-Type': 'application/json',
+        }
+      });
+      console.log('[WhatsappService] Message sent successfully:', response.data);
+    } catch (error: any) {
+      // Catch and rethrow to allow the caller to handle it gracefully
+      console.error('[WhatsappService] Error sending WhatsApp message:', error?.response?.data || error.message);
+      throw error;
+    }
   }
 }
+
+export const whatsappService = new WhatsappService();

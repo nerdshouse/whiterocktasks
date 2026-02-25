@@ -240,8 +240,9 @@ export const api = {
     t: Omit<Task, 'id' | 'created_at' | 'updated_at'>
   ): Promise<Task> => {
     const now = new Date().toISOString();
+    const cleanData = Object.fromEntries(Object.entries(t).filter(([_, v]) => v !== undefined));
     const ref = await addDoc(collection(db, COLLECTIONS.TASKS), {
-      ...t,
+      ...cleanData,
       created_at: isoToTimestamp(now),
       updated_at: isoToTimestamp(now),
     });
@@ -417,39 +418,28 @@ export const api = {
   // --- WhatsApp (11za) ---
   sendTaskAssignmentWhatsApp: async (
     phone: string,
-    task: { title: string; due_date: string; priority: TaskPriority; link: string; assigned_by: string }
+    task: { title: string; due_date: string; priority: TaskPriority; description: string; link: string }
   ): Promise<void> => {
-    const { sendTemplate } = await import('./whatsapp');
+    const { whatsappService } = await import('./whatsapp');
     const templateName =
-      import.meta.env.VITE_11ZA_TEMPLATE_TASK_ASSIGNMENT || 'task_assignment';
-    await sendTemplate({
+      import.meta.env.VITE_11ZA_TEMPLATE_TASK_ASSIGNMENT || 'task_assigned';
+
+    await whatsappService.sendTaskAssignment({
       phone,
       templateName,
-      bodyParams: [
-        task.title,
-        task.due_date,
-        task.priority,
-        task.assigned_by,
-        task.link,
-      ],
+      taskName: task.title,
+      dueDate: task.due_date,
+      priority: task.priority,
+      description: task.description,
+      link: task.link,
     });
   },
 
-  sendDailyTasksWhatsApp: async (
-    phone: string,
-    tasks: { title: string; due_date: string; priority: TaskPriority }[]
-  ): Promise<void> => {
-    const { sendTemplate } = await import('./whatsapp');
-    const templateName =
-      import.meta.env.VITE_11ZA_TEMPLATE_DAILY_TASKS || 'daily_tasks_reminder';
-    const date = new Date().toISOString().split('T')[0];
-    const taskList = tasks.length
-      ? tasks.map((t) => `${t.title} (Due: ${t.due_date}, ${t.priority})`).join('\n• ')
-      : 'No tasks due today.';
-    await sendTemplate({
-      phone,
-      templateName,
-      bodyParams: [date, taskList],
-    });
-  },
+  // sendDailyTasksWhatsApp: async (
+  //   phone: string,
+  //   tasks: { title: string; due_date: string; priority: TaskPriority }[]
+  // ): Promise<void> => {
+  //   // Disabled temporarily: whatsappService structure implemented for AssignTask only
+  //   console.warn("Daily Tasks WhatsApp reminder temporarily disabled during WhatsappService rewrite.");
+  // },
 };

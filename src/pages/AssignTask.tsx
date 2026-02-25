@@ -89,13 +89,20 @@ export const AssignTask: React.FC = () => {
       const created = await api.createTask(task);
       const assigneeUser = users.find((u) => u.id === assignedToId);
       if (assigneeUser?.phone) {
-        const link = `${window.location.origin}/#/tasks?highlight=${created.id}`;
+        const origin = window.location.origin;
+        const link = `${origin}/#/tasks?highlight=${created.id}`;
+        const formattedDate = created.due_date.split('-').reverse().join('-');  
+        let desc = created.description || 'N/A';
+        if (desc.length > 60) {
+          desc = desc.substring(0, 56) + '...';
+        }
+
         await api.sendTaskAssignmentWhatsApp(assigneeUser.phone, {
           title: created.title,
-          due_date: created.due_date,
+          description: desc,
+          due_date: formattedDate,
           priority: created.priority,
           link,
-          assigned_by: user.name,
         });
       }
       setSuccess('Task assigned successfully!');
@@ -193,11 +200,10 @@ export const AssignTask: React.FC = () => {
                     key={d.value}
                     type="button"
                     onClick={() => toggleDay(d.value)}
-                    className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
-                      recurringDays.includes(d.value)
-                        ? 'bg-teal-600 text-white'
-                        : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                    }`}
+                    className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${recurringDays.includes(d.value)
+                      ? 'bg-teal-600 text-white'
+                      : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                      }`}
                   >
                     {d.label}
                   </button>
