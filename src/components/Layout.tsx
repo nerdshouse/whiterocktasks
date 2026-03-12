@@ -41,11 +41,10 @@ const NavItem = ({
   <Link
     to={to}
     onClick={onClick}
-    className={`flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 ${
-      active
+    className={`flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 ${active
         ? 'bg-slate-700 text-white'
         : 'text-slate-600 hover:bg-slate-50 hover:text-slate-800'
-    }`}
+      }`}
   >
     <Icon size={20} className={active ? 'text-white' : 'text-slate-500'} />
     <span>{label}</span>
@@ -78,15 +77,15 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
   const navItems: { to: string; icon: any; label: string }[] = isAuditor
     ? [{ to: '/tasks', icon: Table2, label: 'Audit Tasks' }]
     : [
-        ...(canAssign ? [{ to: '/assign', icon: ClipboardList, label: 'Assign Task' }] : []),
-        { to: '/removal', icon: Trash2, label: 'Removal Request' },
-        ...(canSeeRedZone ? [{ to: '/redzone', icon: AlertTriangle, label: 'Red Zone' }] : []),
-        { to: '/kpi', icon: BarChart3, label: 'KPI' },
-        { to: '/tasks', icon: Table2, label: 'Task Table' },
-        ...(isOwner ? [{ to: '/members', icon: Users, label: 'Members' }] : []),
-        ...(isManager ? [{ to: '/bogus-attachment', icon: Paperclip, label: 'Bogus Attachment' }] : []),
-        { to: '/settings', icon: Settings, label: 'Settings' },
-      ];
+      ...(canAssign ? [{ to: '/assign', icon: ClipboardList, label: 'Assign Task' }] : []),
+      { to: '/removal', icon: Trash2, label: 'Removal Request' },
+      ...(canSeeRedZone ? [{ to: '/redzone', icon: AlertTriangle, label: 'Overdue' }] : []),
+      { to: '/kpi', icon: BarChart3, label: 'KPI' },
+      { to: '/tasks', icon: Table2, label: 'Task Table' },
+      ...(isOwner ? [{ to: '/members', icon: Users, label: 'Members' }] : []),
+      ...(isManager ? [{ to: '/bogus-attachment', icon: Paperclip, label: 'Bogus Attachment' }] : []),
+      { to: '/settings', icon: Settings, label: 'Settings' },
+    ];
 
   return (
     <div className="min-h-screen bg-slate-100/80 flex flex-col md:flex-row">
@@ -220,7 +219,7 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
               '/tasks': 'Task Table',
               '/assign': 'Assign Task',
               '/removal': 'Removal Request',
-              '/redzone': 'Red Zone',
+              '/redzone': 'Overdue',
               '/kpi': 'KPI Dashboard',
               '/members': 'Members',
               '/bogus-attachment': 'Bogus Attachment',

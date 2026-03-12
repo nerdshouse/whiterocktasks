@@ -51,7 +51,7 @@ class WhatsappService {
       authToken: AUTH_TOKEN,
       originWebsite: sanitizedOrigin,
       language: "en",
-      templateName: templateName || 'task_assigned',
+      templateName: templateName || 'task_assignment',
       name: taskName,
       data: [
         taskName,

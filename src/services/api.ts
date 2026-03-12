@@ -9,6 +9,7 @@ import {
   doc,
   getDoc,
   getDocs,
+  getCountFromServer,
   addDoc,
   updateDoc,
   deleteDoc,
@@ -18,6 +19,7 @@ import {
   limit,
   startAfter,
   QueryDocumentSnapshot,
+  FirestoreError,
 } from 'firebase/firestore';
 import {
   User,
@@ -200,27 +202,111 @@ export const api = {
     assignedTo?: string;
     assignedBy?: string;
     status?: TaskStatus;
+    recurring?: string;
+    dueDateFrom?: string;
+    dueDateTo?: string;
   }): Promise<{ tasks: Task[]; lastDoc: QueryDocumentSnapshot | null }> => {
-    const { pageSize, startAfterDoc, assignedTo, assignedBy, status } = opts;
+    const { pageSize, startAfterDoc, assignedTo, assignedBy, status, recurring, dueDateFrom, dueDateTo } = opts;
     const tasksRef = collection(db, COLLECTIONS.TASKS);
-    const constraints: unknown[] = [orderBy('updated_at', 'desc'), limit(pageSize)];
+    const hasDueDateRange = Boolean(dueDateFrom || dueDateTo);
+    const constraints: unknown[] = [
+      hasDueDateRange ? orderBy('due_date', 'desc') : orderBy('updated_at', 'desc'),
+    ];
     if (assignedTo) {
       constraints.unshift(where('assigned_to_id', '==', assignedTo));
-    } else if (assignedBy) {
+    }
+    if (assignedBy) {
       constraints.unshift(where('assigned_by_id', '==', assignedBy));
-    } else if (status) {
+    }
+    if (status) {
       constraints.unshift(where('status', '==', status));
+    }
+    if (recurring) {
+      constraints.unshift(where('recurring', '==', recurring));
+    }
+    if (dueDateFrom) {
+      constraints.unshift(where('due_date', '>=', dueDateFrom));
+    }
+    if (dueDateTo) {
+      constraints.unshift(where('due_date', '<=', dueDateTo));
     }
     if (startAfterDoc) {
       constraints.push(startAfter(startAfterDoc));
     }
-    const q = query(tasksRef, ...constraints);
-    const snap = await getDocs(q);
-    let tasks = snap.docs.map((d) => docToTask(d));
-    if (assignedTo && status) tasks = tasks.filter((t) => t.status === status);
-    const lastDoc =
-      snap.docs.length === pageSize ? snap.docs[snap.docs.length - 1] : null;
-    return { tasks, lastDoc };
+    constraints.push(limit(pageSize));
+    try {
+      const q = query(tasksRef, ...constraints);
+      const snap = await getDocs(q);
+      const tasks = snap.docs.map((d) => docToTask(d));
+      const lastDoc =
+        snap.docs.length === pageSize ? snap.docs[snap.docs.length - 1] : null;
+      return { tasks, lastDoc };
+    } catch (error) {
+      const firestoreError = error as FirestoreError;
+      const isIndexError = firestoreError?.code === 'failed-precondition';
+      if (!isIndexError) throw error;
+
+      // Fallback when composite index is missing: query without orderBy/startAfter,
+      // then sort client-side and return all matches in a single batch.
+      const fallbackConstraints: unknown[] = [];
+      if (assignedTo) {
+        fallbackConstraints.push(where('assigned_to_id', '==', assignedTo));
+      }
+      if (assignedBy) {
+        fallbackConstraints.push(where('assigned_by_id', '==', assignedBy));
+      }
+      if (status) {
+        fallbackConstraints.push(where('status', '==', status));
+      }
+      if (recurring) {
+        fallbackConstraints.push(where('recurring', '==', recurring));
+      }
+      if (dueDateFrom) {
+        fallbackConstraints.push(where('due_date', '>=', dueDateFrom));
+      }
+      if (dueDateTo) {
+        fallbackConstraints.push(where('due_date', '<=', dueDateTo));
+      }
+
+      const fallbackQuery =
+        fallbackConstraints.length > 0
+          ? query(tasksRef, ...fallbackConstraints)
+          : query(tasksRef);
+      const fallbackSnap = await getDocs(fallbackQuery);
+      const tasks = fallbackSnap.docs
+        .map((d) => docToTask(d))
+        .sort((a, b) => {
+          if (hasDueDateRange) {
+            if (a.due_date === b.due_date) return a.updated_at < b.updated_at ? 1 : -1;
+            return a.due_date < b.due_date ? 1 : -1;
+          }
+          return a.updated_at < b.updated_at ? 1 : -1;
+        });
+
+      return { tasks, lastDoc: null };
+    }
+  },
+
+  /** Count tasks matching filters (for pagination totals). */
+  getTasksCount: async (filters?: {
+    assignedTo?: string;
+    assignedBy?: string;
+    status?: TaskStatus;
+    recurring?: string;
+    dueDateFrom?: string;
+    dueDateTo?: string;
+  }): Promise<number> => {
+    const tasksRef = collection(db, COLLECTIONS.TASKS);
+    const constraints: unknown[] = [];
+    if (filters?.assignedTo) constraints.push(where('assigned_to_id', '==', filters.assignedTo));
+    if (filters?.assignedBy) constraints.push(where('assigned_by_id', '==', filters.assignedBy));
+    if (filters?.status) constraints.push(where('status', '==', filters.status));
+    if (filters?.recurring) constraints.push(where('recurring', '==', filters.recurring));
+    if (filters?.dueDateFrom) constraints.push(where('due_date', '>=', filters.dueDateFrom));
+    if (filters?.dueDateTo) constraints.push(where('due_date', '<=', filters.dueDateTo));
+    const q = constraints.length > 0 ? query(tasksRef, ...constraints) : query(tasksRef);
+    const countSnap = await getCountFromServer(q);
+    return countSnap.data().count;
   },
 
   /** Incomplete tasks for current user (e.g. removal request dropdown). Limit 100. */
@@ -459,7 +545,7 @@ export const api = {
   ): Promise<void> => {
     const { whatsappService } = await import('./whatsapp');
     const templateName =
-      import.meta.env.VITE_11ZA_TEMPLATE_TASK_ASSIGNMENT || 'task_assigned';
+      import.meta.env.VITE_11ZA_TEMPLATE_TASK_ASSIGNMENT || 'task_assignment';
 
     await whatsappService.sendTaskAssignment({
       phone,

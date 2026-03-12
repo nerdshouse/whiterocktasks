@@ -7,10 +7,10 @@ import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { storage } from '../lib/firebase';
 import { Button } from '../components/ui/Button';
 import { isHoliday, compressImageForUpload, getPendingDays } from '../lib/utils';
-import { Paperclip, Check, X, HelpCircle, ExternalLink, FileText, Pencil, Trash2 } from 'lucide-react';
+import { Paperclip, Check, X, HelpCircle, ExternalLink, FileText, Pencil, Trash2, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from 'lucide-react';
 import type { QueryDocumentSnapshot } from 'firebase/firestore';
 
-const PAGE_SIZE = 7;
+const ROWS_PER_PAGE_OPTIONS = [25, 100, 500, 1000] as const;
 
 const DAYS = [
   { value: 0, label: 'Mon' },
@@ -28,10 +28,16 @@ export const TaskTable: React.FC = () => {
   const highlightId = searchParams.get('highlight');
   const [tasks, setTasks] = useState<Task[]>([]);
   const [lastDoc, setLastDoc] = useState<QueryDocumentSnapshot | null>(null);
+  const [pageCursors, setPageCursors] = useState<(QueryDocumentSnapshot | null)[]>([null]);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [rowsPerPage, setRowsPerPage] = useState<number>(ROWS_PER_PAGE_OPTIONS[0]);
   const [hasNextPage, setHasNextPage] = useState(false);
+  const [totalResults, setTotalResults] = useState(0);
   const [holidays, setHolidays] = useState<Holiday[]>([]);
   const [loading, setLoading] = useState(true);
-  const [startDateFilter, setStartDateFilter] = useState('');
+  const [dateFilter, setDateFilter] = useState('all_time');
+  const [customStart, setCustomStart] = useState('');
+  const [customEnd, setCustomEnd] = useState('');
   const [assignedToFilter, setAssignedToFilter] = useState('');
   const [assignedByFilter, setAssignedByFilter] = useState('');
   const [recurringFilter, setRecurringFilter] = useState('');
@@ -59,48 +65,113 @@ export const TaskTable: React.FC = () => {
   const isManager = user?.role === UserRole.MANAGER || user?.role === UserRole.OWNER;
   const isDoer = user?.role === UserRole.DOER;
 
+  const resolveDoerDateRange = useCallback((): { dueDateFrom?: string; dueDateTo?: string } => {
+    if (dateFilter === 'all_time') return {};
+
+    const today = new Date();
+    const getFormattedDate = (d: Date) => {
+      const year = d.getFullYear();
+      const month = String(d.getMonth() + 1).padStart(2, '0');
+      const day = String(d.getDate()).padStart(2, '0');
+      return `${year}-${month}-${day}`;
+    };
+
+    if (dateFilter === 'today') {
+      const day = getFormattedDate(today);
+      return { dueDateFrom: day, dueDateTo: day };
+    }
+    if (dateFilter === 'yesterday') {
+      const y = new Date(today);
+      y.setDate(y.getDate() - 1);
+      const day = getFormattedDate(y);
+      return { dueDateFrom: day, dueDateTo: day };
+    }
+    if (dateFilter === 'last_7_days') {
+      const past = new Date(today);
+      past.setDate(past.getDate() - 7);
+      return { dueDateFrom: getFormattedDate(past), dueDateTo: getFormattedDate(today) };
+    }
+    if (dateFilter === 'last_30_days') {
+      const past = new Date(today);
+      past.setDate(past.getDate() - 30);
+      return { dueDateFrom: getFormattedDate(past), dueDateTo: getFormattedDate(today) };
+    }
+    if (dateFilter === 'custom') {
+      return { dueDateFrom: customStart || undefined, dueDateTo: customEnd || undefined };
+    }
+    return {};
+  }, [dateFilter, customStart, customEnd]);
+
+  const getActiveFilters = useCallback(() => {
+    const filters: {
+      assignedTo?: string;
+      assignedBy?: string;
+      status?: 'completed';
+      recurring?: string;
+      dueDateFrom?: string;
+      dueDateTo?: string;
+    } = {};
+    if (isDoer) filters.assignedTo = user?.id ?? '';
+    if (isAuditor) filters.status = 'completed';
+    if (!isDoer && assignedToFilter) filters.assignedTo = assignedToFilter;
+    if (!isDoer && assignedByFilter) filters.assignedBy = assignedByFilter;
+    if (!isDoer && recurringFilter) filters.recurring = recurringFilter;
+    if (isDoer) {
+      const range = resolveDoerDateRange();
+      if (range.dueDateFrom) filters.dueDateFrom = range.dueDateFrom;
+      if (range.dueDateTo) filters.dueDateTo = range.dueDateTo;
+    }
+    return filters;
+  }, [user?.id, isDoer, isAuditor, assignedToFilter, assignedByFilter, recurringFilter, resolveDoerDateRange]);
+
   const loadPage = useCallback(
-    async (startAfterDoc: QueryDocumentSnapshot | null | undefined, append: boolean) => {
-      const filters: { assignedTo?: string; assignedBy?: string; status?: 'completed' } = {};
-      if (isDoer) filters.assignedTo = user?.id ?? '';
-      if (isAuditor) filters.status = 'completed';
-      const { tasks: nextTasks, lastDoc: nextLastDoc } = await api.getTasksPaginated({
-        pageSize: PAGE_SIZE,
-        startAfterDoc: startAfterDoc ?? undefined,
-        ...filters,
-      });
-      setTasks((prev) => (append ? [...prev, ...nextTasks] : nextTasks));
-      setLastDoc(nextLastDoc);
-      setHasNextPage(nextLastDoc != null);
-      setLoading(false);
+    async (startAfterDoc: QueryDocumentSnapshot | null | undefined, pageNumber: number) => {
+      try {
+        const filters = getActiveFilters();
+        const { tasks: nextTasks, lastDoc: nextLastDoc } = await api.getTasksPaginated({
+          pageSize: rowsPerPage,
+          startAfterDoc: startAfterDoc ?? undefined,
+          ...filters,
+        });
+        setTasks(nextTasks);
+        setLastDoc(nextLastDoc);
+        setCurrentPage(pageNumber);
+        setHasNextPage(nextLastDoc != null);
+      } catch (err) {
+        console.error('Failed to load tasks:', err);
+        setTasks([]);
+        setLastDoc(null);
+        setCurrentPage(pageNumber);
+        setHasNextPage(false);
+      } finally {
+        setLoading(false);
+      }
     },
-    [user?.id, isDoer, isAuditor]
+    [getActiveFilters, rowsPerPage]
   );
+
+  useEffect(() => {
+    api.getHolidays().then(setHolidays).catch(console.error);
+  }, []);
 
   useEffect(() => {
     const load = async () => {
       setLoading(true);
-      const [h] = await Promise.all([api.getHolidays()]);
-      setHolidays(h);
-      await loadPage(undefined, false);
+      setCurrentPage(1);
+      setPageCursors([null]);
+      try {
+        const count = await api.getTasksCount(getActiveFilters());
+        setTotalResults(count);
+      } catch (err) {
+        console.error('Failed to load task count:', err);
+        setTotalResults(0);
+      }
+      await loadPage(undefined, 1);
     };
     load();
-  }, [loadPage]);
+  }, [loadPage, getActiveFilters]);
 
-  let filteredTasks = tasks;
-  if (isDoer && startDateFilter) {
-    filteredTasks = tasks.filter((t) => t.start_date === startDateFilter);
-  } else {
-    if (assignedToFilter) {
-      filteredTasks = filteredTasks.filter((t) => t.assigned_to_id === assignedToFilter);
-    }
-    if (assignedByFilter) {
-      filteredTasks = filteredTasks.filter((t) => t.assigned_by_id === assignedByFilter);
-    }
-    if (recurringFilter) {
-      filteredTasks = filteredTasks.filter((t) => t.recurring === recurringFilter);
-    }
-  }
+  const filteredTasks = tasks;
 
   // Get unique lists of users and recurring types from the currently loaded tasks
   // (Note: For a fully complete list across all pages, we would need to query the users collection,
@@ -162,7 +233,7 @@ export const TaskTable: React.FC = () => {
         ...(text && { attachment_text: text }),
       });
       setLoading(true);
-      await loadPage(undefined, false);
+      await loadPage(pageCursors[currentPage - 1] ?? null, currentPage);
       setCompleteTask(null);
       setAttachmentUrl('');
       setAttachmentText('');
@@ -188,16 +259,74 @@ export const TaskTable: React.FC = () => {
     try {
       await api.setAuditStatus(taskId, status, user.name);
       setLoading(true);
-      await loadPage(undefined, false);
+      await loadPage(pageCursors[currentPage - 1] ?? null, currentPage);
     } catch (err) {
       console.error(err);
     }
   };
 
-  const handleLoadMore = () => {
-    if (!lastDoc || !hasNextPage) return;
+  const handleNextPage = () => {
+    if (!lastDoc || !hasNextPage || loading) return;
+    setPageCursors((prev) => {
+      const next = [...prev];
+      next[currentPage] = lastDoc;
+      return next;
+    });
     setLoading(true);
-    loadPage(lastDoc, true);
+    loadPage(lastDoc, currentPage + 1);
+  };
+
+  const handlePreviousPage = () => {
+    if (currentPage <= 1 || loading) return;
+    const previousCursor = pageCursors[currentPage - 2] ?? null;
+    setLoading(true);
+    loadPage(previousCursor, currentPage - 1);
+  };
+
+  const handleRowsPerPageChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    setRowsPerPage(Number(e.target.value));
+  };
+
+  const handleFirstPage = () => {
+    if (currentPage <= 1 || loading) return;
+    setLoading(true);
+    loadPage(null, 1);
+  };
+
+  const handleLastPage = async () => {
+    const totalPages = Math.max(1, Math.ceil(totalResults / rowsPerPage));
+    if (loading || currentPage >= totalPages) return;
+
+    // Firestore cursor pagination cannot jump directly to unknown pages, so we walk forward.
+    let cursor = lastDoc;
+    let targetPage = currentPage;
+    setLoading(true);
+
+    try {
+      while (targetPage < totalPages && cursor != null) {
+        const filters = getActiveFilters();
+        const { tasks: nextTasks, lastDoc: nextLastDoc } = await api.getTasksPaginated({
+          pageSize: rowsPerPage,
+          startAfterDoc: cursor,
+          ...filters,
+        });
+        targetPage += 1;
+        setPageCursors((prev) => {
+          const next = [...prev];
+          next[targetPage - 1] = cursor;
+          return next;
+        });
+        setTasks(nextTasks);
+        setLastDoc(nextLastDoc);
+        setCurrentPage(targetPage);
+        setHasNextPage(nextLastDoc != null);
+        cursor = nextLastDoc;
+      }
+    } catch (err) {
+      console.error('Failed to load last page:', err);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const openEditModal = (t: Task) => {
@@ -261,20 +390,81 @@ export const TaskTable: React.FC = () => {
 
   if (loading) return <div className="text-slate-500">Loading...</div>;
 
+  const totalPages = Math.max(1, Math.ceil(totalResults / rowsPerPage));
+  const startRow = totalResults === 0 ? 0 : (currentPage - 1) * rowsPerPage + 1;
+  const endRow = totalResults === 0 ? 0 : Math.min(currentPage * rowsPerPage, totalResults);
+
+  const paginationControls = (
+    <div className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-slate-700">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex items-center gap-3">
+          <span className="text-sm font-medium text-slate-600">Rows per page</span>
+          <select
+            value={rowsPerPage}
+            onChange={handleRowsPerPageChange}
+            className="h-10 rounded-xl border border-slate-300 bg-white px-3 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-teal-500"
+          >
+            {ROWS_PER_PAGE_OPTIONS.map((size) => (
+              <option key={size} value={size}>
+                {size}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div className="flex items-center gap-3 sm:gap-4">
+          <p className="text-sm text-slate-500 whitespace-nowrap">
+            Showing <span className="font-semibold text-slate-800">{startRow}-{endRow}</span> of{' '}
+            <span className="font-semibold text-slate-800">{totalResults}</span> results
+          </p>
+          <div className="flex items-center gap-1.5">
+            <button
+              type="button"
+              aria-label="First page"
+              onClick={handleFirstPage}
+              disabled={loading || currentPage <= 1}
+              className="h-9 w-9 inline-flex items-center justify-center rounded-xl border border-slate-300 bg-slate-50 text-slate-600 hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              <ChevronsLeft size={16} />
+            </button>
+            <button
+              type="button"
+              aria-label="Previous page"
+              onClick={handlePreviousPage}
+              disabled={loading || currentPage <= 1}
+              className="h-9 w-9 inline-flex items-center justify-center rounded-xl border border-slate-300 bg-slate-50 text-slate-600 hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              <ChevronLeft size={16} />
+            </button>
+            <button
+              type="button"
+              aria-label="Next page"
+              onClick={handleNextPage}
+              disabled={loading || !hasNextPage}
+              className="h-9 w-9 inline-flex items-center justify-center rounded-xl border border-slate-300 bg-slate-50 text-slate-600 hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              <ChevronRight size={16} />
+            </button>
+            <button
+              type="button"
+              aria-label="Last page"
+              onClick={handleLastPage}
+              disabled={loading || currentPage >= totalPages || !hasNextPage}
+              className="h-9 w-9 inline-flex items-center justify-center rounded-xl border border-slate-300 bg-slate-50 text-slate-600 hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              <ChevronsRight size={16} />
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+
   if (isAuditor) {
     return (
       <div>
         <p className="text-slate-500 text-sm mb-4">Tasks pending audit. Mark as audited, bogus, or unclear.</p>
         <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
-          <p className="text-sm text-slate-600">
-            Showing <span className="font-medium text-slate-800">{filteredTasks.length}</span> task{filteredTasks.length !== 1 ? 's' : ''}
-            {hasNextPage && '+'}
-          </p>
-          {hasNextPage && (
-            <Button size="sm" variant="secondary" onClick={handleLoadMore} disabled={loading}>
-              {loading ? 'Loading...' : 'Load more'}
-            </Button>
-          )}
+          {paginationControls}
         </div>
         <div className="table-container">
           <table>
@@ -369,29 +559,46 @@ export const TaskTable: React.FC = () => {
             </tbody>
           </table>
         </div>
-        {hasNextPage && (
-          <div className="mt-3 flex justify-center border-t border-slate-100 pt-3">
-            <Button variant="secondary" onClick={handleLoadMore} disabled={loading}>
-              {loading ? 'Loading...' : 'Load more'}
-            </Button>
-          </div>
-        )}
+        <div className="mt-3 flex justify-end border-t border-slate-100 pt-3">{paginationControls}</div>
       </div>
     );
   }
 
   return (
     <div>
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-3">
         {isDoer ? (
-          <div className="flex items-center gap-2">
-            <label className="text-sm text-slate-600">Filter by Start Date:</label>
-            <input
-              type="date"
-              value={startDateFilter}
-              onChange={(e) => setStartDateFilter(e.target.value)}
-              className="h-9 rounded-lg border border-slate-300 px-3 text-sm"
-            />
+          <div className="flex flex-wrap items-center gap-3">
+            <select
+              value={dateFilter}
+              onChange={(e) => setDateFilter(e.target.value)}
+              className="h-9 rounded-lg border border-slate-300 px-3 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-teal-500"
+            >
+              <option value="all_time">All Time</option>
+              <option value="today">Today</option>
+              <option value="yesterday">Yesterday</option>
+              <option value="last_7_days">Last 7 Days</option>
+              <option value="last_30_days">Last 30 Days</option>
+              <option value="custom">Custom Range</option>
+            </select>
+
+            {dateFilter === 'custom' && (
+              <div className="flex items-center gap-2">
+                <input
+                  type="date"
+                  value={customStart}
+                  onChange={(e) => setCustomStart(e.target.value)}
+                  className="h-9 rounded-lg border border-slate-300 px-3 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-teal-500"
+                />
+                <span className="text-slate-500 text-sm">to</span>
+                <input
+                  type="date"
+                  value={customEnd}
+                  onChange={(e) => setCustomEnd(e.target.value)}
+                  className="h-9 rounded-lg border border-slate-300 px-3 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-teal-500"
+                />
+              </div>
+            )}
           </div>
         ) : (
           <div className="flex flex-wrap items-center gap-3">
@@ -438,25 +645,15 @@ export const TaskTable: React.FC = () => {
             </select>
           </div>
         )}
-        <div className="flex flex-wrap items-center justify-between gap-2 sm:ml-auto">
-          <p className="text-sm text-slate-600">
-            Showing <span className="font-medium text-slate-800">{filteredTasks.length}</span> task{filteredTasks.length !== 1 ? 's' : ''}
-            {hasNextPage && '+'}
-          </p>
-          {hasNextPage && (
-            <Button size="sm" variant="secondary" onClick={handleLoadMore} disabled={loading}>
-              {loading ? 'Loading...' : 'Load more'}
-            </Button>
-          )}
-        </div>
       </div>
+      <div className="mb-6">{paginationControls}</div>
       <div className="table-container">
         <table>
           <thead>
             <tr>
               <th className="whitespace-nowrap">Title</th>
               <th className="min-w-[180px]">Description</th>
-              <th className="whitespace-nowrap">Assigned To</th>
+              {!isDoer && <th className="whitespace-nowrap">Assigned To</th>}
               <th className="whitespace-nowrap">Assigned By</th>
               <th className="whitespace-nowrap text-center">Start Date</th>
               <th className="whitespace-nowrap text-center">Due Date</th>
@@ -487,12 +684,14 @@ export const TaskTable: React.FC = () => {
                   <td className="min-w-[200px] whitespace-pre-wrap break-words text-sm text-slate-700">
                     {t.description || '-'}
                   </td>
-                  <td>
-                    {t.assigned_to_name}
-                    {t.assignee_deleted && (
-                      <span className="ml-2 text-xs px-2 py-0.5 rounded bg-slate-200 text-slate-600">Member deleted</span>
-                    )}
-                  </td>
+                  {!isDoer && (
+                    <td>
+                      {t.assigned_to_name}
+                      {t.assignee_deleted && (
+                        <span className="ml-2 text-xs px-2 py-0.5 rounded bg-slate-200 text-slate-600">Member deleted</span>
+                      )}
+                    </td>
+                  )}
                   <td>
                     <span className="text-sm font-medium text-slate-700 whitespace-nowrap">
                       {t.assigned_by_name}
@@ -573,13 +772,7 @@ export const TaskTable: React.FC = () => {
           </tbody>
         </table>
       </div>
-      {hasNextPage && (
-        <div className="mt-3 flex justify-center">
-          <Button variant="secondary" onClick={handleLoadMore} disabled={loading}>
-            {loading ? 'Loading...' : 'Load more'}
-          </Button>
-        </div>
-      )}
+      <div className="mt-3 flex justify-end">{paginationControls}</div>
 
       {completeTask && (
         <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
