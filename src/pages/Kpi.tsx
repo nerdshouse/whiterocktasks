@@ -1,16 +1,34 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
-import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip } from 'recharts';
 import { ArrowUp, ArrowDown, ArrowUpDown } from 'lucide-react';
 import { api } from '../services/api';
+import { computeKpiByMember } from '../lib/utils';
+import { Task, User, UserRole } from '../types';
+
+/*
+Preserved for future restore (intentionally commented):
+
 import { computeKpi, computeKpiByMember } from '../lib/utils';
 import { KpiMetrics, Task, User, UserRole } from '../types';
 
-const PIE_COLORS = ['#14b8a6', '#22c55e', '#f59e0b', '#ef4444'];
+const [metrics, setMetrics] = useState<KpiMetrics | null>(null);
+
+setMetrics(computeKpi(allData.tasks, allData.holidays, allData.absences, isOwner ? undefined : user?.id));
+
+if (!metrics) return null;
+
+const summaryRows = [
+  { label: 'Total Assigned', value: metrics.total_assigned },
+  { label: 'On Time Completed', value: metrics.on_time_completed },
+  { label: 'Late Completed', value: metrics.late_completed },
+  { label: 'Overdue Tasks', value: metrics.overdue_count },
+  { label: 'Overdue %', value: `${metrics.overdue_percent}%` },
+  { label: 'Late Completion %', value: `${metrics.late_completion_percent}%` },
+];
+*/
 
 export const Kpi: React.FC = () => {
   const { user } = useAuth();
-  const [metrics, setMetrics] = useState<KpiMetrics | null>(null);
   const [memberRows, setMemberRows] = useState<ReturnType<typeof computeKpiByMember>>([]);
   const [loading, setLoading] = useState(true);
   const [sortConfig, setSortConfig] = useState<{ key: string; direction: 'asc' | 'desc' } | null>(null);
@@ -84,68 +102,30 @@ export const Kpi: React.FC = () => {
       }
     }
 
-    setMetrics(computeKpi(allData.tasks, allData.holidays, allData.absences, isOwner ? undefined : user?.id));
     setMemberRows(computeKpiByMember(filteredTasks, allData.holidays, allData.absences, allData.users));
     setLoading(false);
   }, [allData, dateFilter, customStart, customEnd, isOwner, user?.id]);
 
   if (loading) return <div className="text-slate-500">Loading...</div>;
-  if (!metrics) return null;
-
-  const pieData = [
-    { name: 'On Time Completed', value: metrics.on_time_completed, color: PIE_COLORS[0] },
-    { name: 'Late Completed', value: metrics.late_completed, color: PIE_COLORS[1] },
-    { name: 'Overdue', value: metrics.overdue_count, color: PIE_COLORS[2] },
-    { name: 'Pending', value: Math.max(0, metrics.total_assigned - metrics.on_time_completed - metrics.late_completed - metrics.overdue_count), color: PIE_COLORS[3] },
-  ].filter((d) => d.value > 0);
-
-  const summaryRows = [
-    { label: 'Total Assigned', value: metrics.total_assigned },
-    { label: 'On Time Completed', value: metrics.on_time_completed },
-    { label: 'Late Completed', value: metrics.late_completed },
-    { label: 'Overdue Tasks', value: metrics.overdue_count },
-    { label: 'Overdue %', value: `${metrics.overdue_percent}%` },
-    { label: 'Late Completion %', value: `${metrics.late_completion_percent}%` },
-  ];
 
   return (
     <div>
-      <p className="text-slate-600 mb-6">
+      {/* <p className="text-slate-600 mb-6">
         {isOwner ? 'Full team KPI.' : 'Your personal KPI.'} Tasks on holidays and during absence are excluded.
-      </p>
+      </p> */}
 
-      {/* One fold: Task distribution + summary metrics */}
+      {/*
+      One fold: Task distribution + summary metrics (preserved for future restore)
       <div className="mb-8 p-6 bg-white rounded-xl border border-slate-200 shadow-sm">
         <h2 className="text-lg font-semibold text-slate-800 mb-4">Overview</h2>
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
-          {pieData.length > 0 && (
-            <div>
-              <h3 className="text-base font-medium text-slate-700 mb-3">Task Distribution</h3>
-              <div className="h-64">
-                <ResponsiveContainer width="100%" height="100%">
-                  <PieChart>
-                    <Pie
-                      data={pieData}
-                      cx="50%"
-                      cy="50%"
-                      innerRadius={50}
-                      outerRadius={80}
-                      paddingAngle={2}
-                      dataKey="value"
-                      label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
-                    >
-                      {pieData.map((entry) => (
-                        <Cell key={entry.name} fill={entry.color} />
-                      ))}
-                    </Pie>
-                    <Tooltip formatter={(value: number) => [value, '']} />
-                    <Legend />
-                  </PieChart>
-                </ResponsiveContainer>
-              </div>
+        <div className="grid grid-cols-1 gap-6 items-start">
+          <div>
+            <h3 className="text-base font-medium text-slate-700 mb-3">Task Distribution (Pie Chart)</h3>
+            <div className="h-56 rounded-xl border border-dashed border-slate-300 bg-slate-50 flex items-center justify-center text-slate-500 text-sm">
+              Pie chart component placeholder
             </div>
-          )}
-          <div className={pieData.length > 0 ? '' : 'lg:col-span-2'}>
+          </div>
+          <div>
             <h3 className="text-base font-medium text-slate-700 mb-3">Summary Metrics</h3>
             <div className="overflow-x-auto">
               <table className="w-full border-collapse">
@@ -168,6 +148,7 @@ export const Kpi: React.FC = () => {
           </div>
         </div>
       </div>
+      */}
 
       {/* KPI by Member table below */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-4 gap-4">
